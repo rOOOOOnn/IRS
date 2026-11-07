@@ -35,6 +35,32 @@ REQUIRED_COLUMNS: dict[str, list[str]] = {
         "OIS_7Y",
         "OIS_10Y",
     ],
+    "ois_curve_inputs_5y.csv": [
+        "Date",
+        "OIS_1M",
+        "OIS_3M",
+        "OIS_6M",
+        "OIS_1Y",
+        "OIS_2Y",
+        "OIS_3Y",
+        "OIS_4Y",
+        "OIS_5Y",
+    ],
+    "incomplete_curve_dates.csv": [
+        "Date",
+        "Missing_Required_Tenor_Count",
+        "Missing_Required_Tenors",
+        "Split",
+        "Treatment",
+    ],
+    "ois_curve_missingness_by_tenor.csv": [
+        "Tenor",
+        "Total_Dates",
+        "Missing_Dates",
+        "Missing_Rate",
+        "Required_For_5Y_Curve",
+        "Treatment",
+    ],
     "sofr_fixings.csv": ["Date", "SOFR_Raw", "SOFR_Decimal", "Quality_Flag"],
     "sofr_index.csv": ["Date", "SOFR_Index", "Quality_Flag"],
     "data_coverage.csv": [
@@ -82,6 +108,26 @@ def validate_outputs(config: dict[str, Any]) -> list[str]:
             errors.append("ois_par_rates_wide.csv includes pre-main-sample dates")
         if dates.duplicated().any():
             errors.append("ois_par_rates_wide.csv contains duplicate dates")
+    curve_inputs = frames.get("ois_curve_inputs_5y.csv")
+    incomplete = frames.get("incomplete_curve_dates.csv")
+    if curve_inputs is not None:
+        required_columns = [column for column in curve_inputs.columns if column.startswith("OIS_")]
+        if curve_inputs[required_columns].isna().any().any():
+            errors.append("ois_curve_inputs_5y.csv contains missing required tenors")
+    if wide is not None and incomplete is not None:
+        required_columns = [
+            "OIS_1M",
+            "OIS_3M",
+            "OIS_6M",
+            "OIS_1Y",
+            "OIS_2Y",
+            "OIS_3Y",
+            "OIS_4Y",
+            "OIS_5Y",
+        ]
+        expected_incomplete = int(wide[required_columns].isna().any(axis=1).sum())
+        if expected_incomplete != len(incomplete):
+            errors.append("incomplete_curve_dates.csv does not reconcile to required 1M-5Y nodes")
 
     return errors
 

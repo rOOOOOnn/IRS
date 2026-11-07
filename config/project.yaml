@@ -23,6 +23,12 @@ data:
   main_sample_start: 2018-04-02
   source: Bloomberg Excel export
 
+missing_data:
+  curve_panel_policy: REQUIRE_1M_TO_5Y_DROP_IF_MISSING
+  optional_tenors: [7Y, 10Y]
+  interpolation_enabled: false
+  rationale: Match the five-year IRS horizon and avoid look-ahead from two-sided interpolation
+
 splits:
   training: {start: 2018-04-02, end: 2021-12-31}
   validation: {start: 2022-01-03, end: 2023-04-28}

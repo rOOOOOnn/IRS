@@ -17,7 +17,12 @@ from .inspect import (
     load_config,
     read_workbook,
 )
-from .merge import assign_split, ois_long_to_wide
+from .merge import (
+    REQUIRED_5Y_CURVE_COLUMNS,
+    apply_five_year_curve_policy,
+    assign_split,
+    ois_long_to_wide,
+)
 
 
 def infer_rate_decimal(values: pd.Series) -> tuple[pd.Series, str]:
@@ -85,9 +90,7 @@ def standardize_series(series: Any, config: dict[str, Any]) -> tuple[pd.DataFram
 
     frame["Quality_Flag"] = _combine_flags(flag_sets)
     review_mask = frame["Quality_Flag"].map(
-        lambda value: any(
-            flag not in {"OK", "UNIT_INFERRED_PERCENT"} for flag in value.split(";")
-        )
+        lambda value: any(flag not in {"OK", "UNIT_INFERRED_PERCENT"} for flag in value.split(";"))
     )
     anomalies = frame.loc[review_mask, ["Date", "Ticker", "Value", "Quality_Flag", "Source"]].copy()
     anomalies = anomalies.rename(columns={"Value": "Value_Raw", "Quality_Flag": "Issue"})
@@ -152,6 +155,7 @@ def wide_split_summary(wide: pd.DataFrame, config: dict[str, Any]) -> pd.DataFra
             continue
         for label, mask in (
             ("ALL_OIS_DATES", group[value_columns].notna().any(axis=1)),
+            ("COMPLETE_5Y_CURVE", group[REQUIRED_5Y_CURVE_COLUMNS].notna().all(axis=1)),
             ("COMPLETE_10_TENOR_CURVE", group[value_columns].notna().all(axis=1)),
         ):
             selected = group.loc[mask]
@@ -182,6 +186,8 @@ def markdown_table(frame: pd.DataFrame) -> str:
 def build_quality_report(
     coverage: pd.DataFrame,
     missingness: pd.DataFrame,
+    curve_missingness: pd.DataFrame,
+    incomplete_curve_dates: pd.DataFrame,
     anomalies: pd.DataFrame,
     split_counts: pd.DataFrame,
 ) -> str:
@@ -212,6 +218,11 @@ def build_quality_report(
             "deleted, interpolated, or winsorized."
         ),
         (
+            f"- The merged OIS panel has {len(incomplete_curve_dates)} dates missing at least "
+            "one required 1M-5Y node. They are excluded from the five-year curve input "
+            "without interpolation; 7Y and 10Y gaps alone do not exclude a date."
+        ),
+        (
             "- Calendar gaps cannot be classified as holidays versus source failures "
             "without an approved market calendar; they remain unresolved."
         ),
@@ -223,6 +234,14 @@ def build_quality_report(
         "## Missingness",
         "",
         markdown_table(missingness),
+        "",
+        "## Merged OIS Panel Missingness",
+        "",
+        markdown_table(curve_missingness),
+        "",
+        "## Dates Excluded From the Complete Curve Panel",
+        "",
+        markdown_table(incomplete_curve_dates),
         "",
         "## Quality Flags",
         "",
@@ -301,6 +320,9 @@ def run_pipeline(config: dict[str, Any]) -> None:
         ]
     ]
     ois_wide = ois_long_to_wide(ois_long, pd.Timestamp(config["data"]["main_sample_start"]))
+    curve_inputs_5y, incomplete_curve_dates, curve_missingness = apply_five_year_curve_policy(
+        ois_wide, config["splits"]
+    )
     sofr_fixings = fixing.rename(columns={"Value": "SOFR_Raw", "Rate_Decimal": "SOFR_Decimal"})[
         ["Date", "SOFR_Raw", "SOFR_Decimal", "Quality_Flag"]
     ]
@@ -309,13 +331,19 @@ def run_pipeline(config: dict[str, Any]) -> None:
     ]
     missingness = missingness_report(standardized_frames)
     split_counts = pd.concat(
-        [split_summary(standardized_frames, config), wide_split_summary(ois_wide, config)],
+        [
+            split_summary(standardized_frames, config),
+            wide_split_summary(ois_wide, config),
+        ],
         ignore_index=True,
     )
 
     outputs = {
         "ois_quotes_long.csv": ois_long,
         "ois_par_rates_wide.csv": ois_wide,
+        "ois_curve_inputs_5y.csv": curve_inputs_5y,
+        "incomplete_curve_dates.csv": incomplete_curve_dates,
+        "ois_curve_missingness_by_tenor.csv": curve_missingness,
         "sofr_fixings.csv": sofr_fixings,
         "sofr_index.csv": sofr_index,
         "data_coverage.csv": coverage,
@@ -327,7 +355,14 @@ def run_pipeline(config: dict[str, Any]) -> None:
     for name, frame in outputs.items():
         frame.to_csv(output_directory / name, index=False, date_format="%Y-%m-%d")
 
-    report = build_quality_report(coverage, missingness, anomalies, split_counts)
+    report = build_quality_report(
+        coverage,
+        missingness,
+        curve_missingness,
+        incomplete_curve_dates,
+        anomalies,
+        split_counts,
+    )
     (report_directory / "data_quality_report.md").write_text(report, encoding="utf-8")
     print(f"Processed {len(standardized_frames)} series into {output_directory}")
 

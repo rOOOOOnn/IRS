@@ -1,6 +1,11 @@
 import pandas as pd
 
-from irs_project.data.merge import assign_split, ois_long_to_wide
+from irs_project.data.merge import (
+    ALL_TENOR_COLUMNS,
+    apply_five_year_curve_policy,
+    assign_split,
+    ois_long_to_wide,
+)
 from irs_project.data.preprocess import infer_rate_decimal, robust_jump_mask
 
 SPLITS = {
@@ -45,3 +50,24 @@ def test_robust_jump_detection_flags_large_change() -> None:
     values = pd.Series([4.00, 4.01, 4.02, 4.80, 4.81])
     mask = robust_jump_mask(values)
     assert bool(mask.iloc[3])
+
+
+def test_five_year_policy_keeps_optional_gap_and_drops_required_gap() -> None:
+    wide = pd.DataFrame(
+        {
+            "Date": pd.to_datetime(["2022-01-03", "2022-01-04", "2022-01-05"]),
+            **{column: [0.01, 0.02, 0.03] for column in ALL_TENOR_COLUMNS},
+        }
+    )
+    wide.loc[1, "OIS_7Y"] = float("nan")
+    wide.loc[2, "OIS_5Y"] = float("nan")
+
+    curve_inputs, incomplete, by_tenor = apply_five_year_curve_policy(wide, SPLITS)
+
+    assert curve_inputs["Date"].tolist() == [
+        pd.Timestamp("2022-01-03"),
+        pd.Timestamp("2022-01-04"),
+    ]
+    assert incomplete.loc[0, "Missing_Required_Tenors"] == "5Y"
+    assert incomplete.loc[0, "Treatment"] == "DROPPED_FROM_COMPLETE_CURVE_PANEL"
+    assert by_tenor.set_index("Tenor").loc["7Y", "Missing_Dates"] == 1

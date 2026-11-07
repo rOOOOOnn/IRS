@@ -97,9 +97,9 @@ uv run python -m irs_project.data.preprocess
 uv run python -m irs_project.data.validate
 ```
 
-The pipeline creates shared outputs including `ois_quotes_long.csv`, `ois_par_rates_wide.csv`, `sofr_fixings.csv`, `sofr_index.csv`, `data_coverage.csv`, `data_manifest.csv`, `dataset_split_summary.csv`, and `outputs/reports/data_quality_report.md`.
+The pipeline creates shared outputs including `ois_quotes_long.csv`, the full `ois_par_rates_wide.csv`, the curve-ready `ois_curve_inputs_5y.csv`, `incomplete_curve_dates.csv`, `sofr_fixings.csv`, `sofr_index.csv`, coverage and missingness files, and `outputs/reports/data_quality_report.md`.
 
-It preserves raw values, keeps SOFR Index separate from rates, flags USOSFR observations before 2018-04-02 as `PRE_SOFR_UNVERIFIED`, and does not fill or delete missing values or outliers automatically.
+It preserves raw values, keeps SOFR Index separate from rates, and flags USOSFR observations before 2018-04-02 as `PRE_SOFR_UNVERIFIED`. The five-year curve input keeps dates when only 7Y or 10Y is missing, but excludes dates missing any required 1M-5Y node. No interpolation is used, and the full panel plus exclusion report preserve traceability.
 
 ## GitHub for Beginners
 
