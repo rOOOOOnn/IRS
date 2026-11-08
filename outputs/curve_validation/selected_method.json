@@ -1,0 +1,16 @@
+{
+  "selected_method": "monotone_convex_forward",
+  "selection_dataset": "VALIDATION",
+  "selection_metric": "RMSE_bps",
+  "regime_thresholds": {
+    "flat_slope_absolute": 0.0011708,
+    "curvature_absolute": 0.0023694000000000002
+  },
+  "training_regime_mapping": {
+    "FLAT": "monotone_convex_forward",
+    "INVERTED": "monotone_convex_forward",
+    "UPWARD": "monotone_convex_forward",
+    "TROUGH": "monotone_convex_forward",
+    "HUMPED": "monotone_convex_forward"
+  }
+}
