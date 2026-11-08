@@ -2,7 +2,7 @@
 
 This repository supports the CUHK RMSC5003 group project on USD SOFR interest rate swaps. Phase 1 establishes a reproducible project structure, inspects and standardizes exported market data, defines chronological research periods, and documents the interfaces between the three team members.
 
-> **Phase 1 boundary:** this version does not implement yield-curve bootstrapping, interpolation, calibration, IRS pricing, risk models, the decision-tree ensemble, or backtesting. Those modules contain interface documentation only.
+> **Implemented scope:** the repository now includes SOFR OIS bootstrapping, four interpolation frameworks, LOTO validation, daily curve databases, compounded-SOFR IRS pricing, cashflow-adjusted P&L, and scenario repricing. Risk models, the decision-tree ensemble, and backtesting remain owned by the other project phases.
 
 ## Case Study
 
@@ -59,7 +59,7 @@ data/sample/               Small synthetic test data safe for Git
 docs/                      Scope, interfaces, definitions, setup, and workflow
 outputs/                   Local figures, tables, and reports
 src/irs_project/data/      Phase 1 inspection and preprocessing pipeline
-src/irs_project/*/         Later-phase module boundaries and READMEs
+src/irs_project/*/         Data, curve, pricing, risk, ensemble, and backtesting modules
 tests/                     Unit tests using synthetic data
 ```
 
@@ -101,6 +101,28 @@ The pipeline creates shared outputs including `ois_quotes_long.csv`, the full `o
 
 It preserves raw values, keeps SOFR Index separate from rates, and flags USOSFR observations before 2018-04-02 as `PRE_SOFR_UNVERIFIED`. The five-year curve input keeps dates when only 7Y or 10Y is missing, but excludes dates missing any required 1M-5Y node. No interpolation is used, and the full panel plus exclusion report preserve traceability.
 
+## Curve Construction and IRS Pricing
+
+Run the workflows in order:
+
+```bash
+uv run python scripts/run_curve_validation.py
+uv run python scripts/build_daily_curves.py
+uv run python scripts/run_irs_pricing.py
+```
+
+Or run the complete reproducible pipeline:
+
+```bash
+uv run python scripts/run_full_pipeline.py
+```
+
+The four independently bootstrapped methods are linear zero, log-linear discount, natural cubic
+zero, and Hagan-West convex-monotone forward interpolation. Method selection uses Training and
+Validation LOTO only; Test results never select or tune the method. See
+[curve methodology](docs/curve_methodology.md), [curve validation](docs/curve_validation.md), and
+[IRS pricing methodology](docs/irs_pricing_methodology.md).
+
 ## GitHub for Beginners
 
 New GitHub users should follow [GitHub workflow for group members](docs/github_workflow.md). It explains cloning, creating a personal branch, committing, pushing, and opening a pull request on both Windows and macOS.
@@ -113,4 +135,7 @@ The project owner has chosen to share the source exports and reproducible proces
 
 ## Next Phase
 
-After the Phase 1 data definitions and coverage are approved, Ron will implement the curve and pricing engines. Risk and backtesting modules should consume only the documented interfaces and must preserve the no-look-ahead rules.
+Member A can now consume the selected zero-curve changes and scenario repricing interface for risk
+forecasts. Member B can consume the cashflow-adjusted IRS P&L for backtesting. The next integration
+stage should implement the assigned risk, ensemble, and backtesting modules while preserving the
+documented interfaces and no-look-ahead rules.

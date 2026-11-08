@@ -1,0 +1,73 @@
+contract:
+  currency:
+    value: USD
+    status: VERIFIED
+    source: Supplied SEC case description
+  notional:
+    value: 10000000
+    status: VERIFIED
+    source: Supplied SEC case description
+  fixed_rate_decimal:
+    value: 0.03356
+    status: VERIFIED
+    source: Supplied SEC case description
+  position:
+    value: PAY_FIXED_RECEIVE_FLOATING
+    status: VERIFIED
+    source: Supplied SEC case description
+  floating_reference:
+    value: COMPOUNDED_SOFR
+    status: VERIFIED
+    source: Supplied SEC case description
+  effective_date:
+    value: 2023-05-01
+    status: ASSUMPTION
+    source: Research design; exact trade date was not disclosed
+  maturity_date:
+    value: 2028-05-01
+    status: ASSUMPTION
+    source: Research design; exact maturity date was not disclosed
+  fixed_payment_frequency:
+    value: ANNUAL
+    status: ASSUMPTION
+    source: Standard long-dated SOFR OIS convention used for research
+  fixed_day_count:
+    value: ACT/360
+    status: ASSUMPTION
+    source: Standard SOFR OIS convention used for research
+  floating_day_count:
+    value: ACT/360
+    status: ASSUMPTION
+    source: Standard compounded SOFR convention used for research
+  business_day_convention:
+    value: MODIFIED_FOLLOWING
+    status: ASSUMPTION
+    source: Standard USD OIS convention used for research
+  holiday_calendar:
+    value: US_GOVERNMENT_BOND
+    status: ASSUMPTION
+    source: SOFR publication and USD government-securities market calendar proxy
+  payment_lag_days:
+    value: 2
+    status: ASSUMPTION
+    source: Research convention; not supplied in the case disclosure
+  observation_lookback_days:
+    value: 0
+    status: ASSUMPTION
+    source: No lookback disclosed; configurable research baseline
+  observation_shift:
+    value: false
+    status: ASSUMPTION
+    source: No observation shift disclosed; configurable research baseline
+  lockout_days:
+    value: 0
+    status: ASSUMPTION
+    source: No lockout disclosed; configurable research baseline
+  valuation_basis:
+    value: EX_CASHFLOW
+    status: ASSUMPTION
+    source: Chosen for internally consistent daily P&L attribution
+  framework:
+    value: SINGLE_CURVE_SOFR
+    status: RESEARCH_ASSUMPTION
+    source: Project methodology

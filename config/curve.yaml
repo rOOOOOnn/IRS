@@ -1,0 +1,54 @@
+curve:
+  currency: USD
+  reference_day_count: ACT/365F
+  settlement_days: 2
+  calendar: US_GOVERNMENT_BOND
+  business_day_convention: MODIFIED_FOLLOWING
+  fixed_leg_frequency: ANNUAL
+  fixed_leg_day_count: ACT/360
+  payment_lag_days: 2
+  payment_convention: FOLLOWING
+  telescopic_value_dates: true
+  overnight_index: SOFR
+  averaging_method: COMPOUNDED
+  lookback_days: 0
+  lockout_days: 0
+  observation_shift: false
+  allow_extrapolation: false
+  calibration_tolerance_bps: 0.01
+  forward_rate_floor_decimal: -0.05
+  forward_rate_cap_decimal: 0.20
+
+methods:
+  - linear_zero
+  - log_linear_discount
+  - natural_cubic_zero
+  - monotone_convex_forward
+
+tenors:
+  1M: OIS_1M
+  3M: OIS_3M
+  6M: OIS_6M
+  1Y: OIS_1Y
+  2Y: OIS_2Y
+  3Y: OIS_3Y
+  4Y: OIS_4Y
+  5Y: OIS_5Y
+  7Y: OIS_7Y
+  10Y: OIS_10Y
+
+required_pricing_tenors: [1M, 3M, 6M, 1Y, 2Y, 3Y, 4Y, 5Y]
+optional_long_end_tenors: [7Y, 10Y]
+
+validation:
+  interior_only_for_main_metrics: true
+  robustness_holdouts:
+    - [3M, 6M]
+    - [2Y, 3Y]
+    - [4Y, 5Y]
+  robustness_frequency: month_end
+  flat_slope_abs_quantile: 0.20
+  curvature_abs_quantile: 0.80
+  minimum_regime_sample: 30
+  method_selection_metric: RMSE_bps
+  method_selection_dataset: VALIDATION
