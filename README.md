@@ -2,7 +2,7 @@
 
 This repository supports the CUHK RMSC5003 group project on USD SOFR interest rate swaps. Phase 1 establishes a reproducible project structure, inspects and standardizes exported market data, defines chronological research periods, and documents the interfaces between the three team members.
 
-> **Implemented scope:** the repository now includes SOFR OIS bootstrapping, four interpolation frameworks, LOTO validation, daily curve databases, compounded-SOFR IRS pricing, cashflow-adjusted P&L, and scenario repricing. Risk models, the decision-tree ensemble, and backtesting remain owned by the other project phases.
+> **Implemented scope:** the repository now includes SOFR OIS bootstrapping, four interpolation frameworks, LOTO validation, daily curve databases, compounded-SOFR IRS pricing, cashflow-adjusted P&L, and scenario repricing. Rolling HS, EWMA and PCA Monte Carlo forecasts now share this engine; the decision-tree ensemble and backtesting remain separate modules.
 
 ## Case Study
 
@@ -36,7 +36,7 @@ Bloomberg exports
   -> VaR and ES backtesting
 ```
 
-OIS par swap rates are inputs to a future curve engine. They are not zero rates and must not be passed to the final risk model as if they were zero rates.
+OIS par swap rates are inputs to the shared curve engine. They are not zero rates and must not be passed to the final risk model as if they were zero rates.
 
 ## Team Responsibilities
 
@@ -133,9 +133,28 @@ During Phase 1, the project setup is committed to `main`. Once parallel developm
 
 The project owner has chosen to share the source exports and reproducible processed data in this repository so all group members have the same inputs. Each team member must still follow the university's and data provider's applicable terms. Passwords, API keys, tokens, private keys, `.env` files, and local virtual environments must never be committed.
 
+## Rolling Risk Forecasts
+
+After generating the curve and pricing databases, run:
+
+```bash
+uv run python -m scripts.run_risk_models
+uv run python -m scripts.plot_risk_forecasts
+```
+
+The production handoff is `outputs/risk/risk_model_outputs.csv`, with the agreed seven fields.
+All three models use the same eight zero-rate risk factors, contract configuration, pricing
+engine and cashflow-adjusted holding-period loss. Defaults are 500 valid historical changes,
+50,000 Monte Carlo scenarios, EWMA decay 0.94 and three PCA factors.
+
+`Date` is the target realization date; `Forecast_As_Of` is the prior observed-market EOD cutoff.
+Missing forecasts remain empty and are explained in diagnostics; never replace them with zero.
+See [risk methodology](docs/risk_methodology.md) for projected future SOFR, date semantics,
+known limitations and consumer examples. Figures are in `outputs/risk/figures/`.
+
 ## Next Phase
 
-Member A can now consume the selected zero-curve changes and scenario repricing interface for risk
-forecasts. Member B can consume the cashflow-adjusted IRS P&L for backtesting. The next integration
-stage should implement the assigned risk, ensemble, and backtesting modules while preserving the
-documented interfaces and no-look-ahead rules.
+Backtesting and ensemble modules can consume the standardized rolling forecasts and the aligned
+cashflow-adjusted IRS P&L. Report incomplete coverage explicitly and do not tune model or ensemble
+parameters on final Test results. Historical standalone demonstration scripts and their single-date
+CSV outputs are not production inputs.
