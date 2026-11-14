@@ -9,7 +9,7 @@ from irs_project.data.load_market_data import load_contract_config, load_curve_c
 from irs_project.pricing.contract import IRSContract
 from irs_project.pricing.floating_leg import SofrHistory
 from irs_project.pricing.scenario_repricing import build_scenario_curve
-from irs_project.pricing.schedule import build_payment_schedule
+from irs_project.pricing.schedule import build_payment_schedules
 from irs_project.pricing.valuation import price_irs
 
 
@@ -43,10 +43,11 @@ def _history() -> SofrHistory:
     return SofrHistory(fixings=pd.Series(dtype=float), index=index)
 
 
-def test_contract_schedule_has_five_annual_periods() -> None:
-    periods = build_payment_schedule(_contract())
-    assert len(periods) == 5
-    assert periods[0].start_date == pd.Timestamp("2023-05-01")
+def test_contract_uses_disclosed_payment_frequencies() -> None:
+    schedules = build_payment_schedules(_contract())
+    assert len(schedules.fixed) == 10
+    assert len(schedules.floating) == 20
+    assert schedules.floating[0].payment_date < schedules.fixed[0].payment_date
 
 
 def test_pay_fixed_receive_floating_sign() -> None:

@@ -26,20 +26,38 @@ class AccrualPeriod:
     accrual_fraction: float
 
 
-def build_payment_schedule(contract: IRSContract) -> list[AccrualPeriod]:
+@dataclass(frozen=True)
+class PaymentSchedules:
+    fixed: list[AccrualPeriod]
+    floating: list[AccrualPeriod]
+
+
+def build_payment_schedules(contract: IRSContract) -> PaymentSchedules:
+    return PaymentSchedules(
+        fixed=build_payment_schedule(contract),
+        floating=build_payment_schedule(contract, floating=True),
+    )
+
+
+def build_payment_schedule(contract: IRSContract, *, floating: bool = False) -> list[AccrualPeriod]:
     calendar = calendar_from_name(contract.holiday_calendar)
     convention = business_day_convention_from_name(contract.business_day_convention)
+    frequency = contract.fixed_payment_frequency
+    if floating and contract.floating_payment_frequency is not None:
+        frequency = contract.floating_payment_frequency
     schedule = ql.Schedule(
         to_ql_date(contract.effective_date),
         to_ql_date(contract.maturity_date),
-        ql.Period(frequency_from_name(contract.fixed_payment_frequency)),
+        ql.Period(frequency_from_name(frequency)),
         calendar,
         convention,
         convention,
         ql.DateGeneration.Backward,
         False,
     )
-    day_count = day_count_from_name(contract.fixed_day_count)
+    day_count = day_count_from_name(
+        contract.floating_day_count if floating else contract.fixed_day_count
+    )
     periods = []
     for start, end in zip(list(schedule)[:-1], list(schedule)[1:], strict=True):
         payment = calendar.advance(end, contract.payment_lag_days, ql.Days)

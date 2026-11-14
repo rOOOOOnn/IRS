@@ -20,7 +20,7 @@ The project studies a USD interest rate swap held by the John Hancock Financial 
 
 - Assumed start date: 2023-05-01
 - Assumed maturity: May 2028
-- Payment frequency, day-count conventions, calendars, reset rules, and other cash-flow conventions remain to be verified.
+- The SEC filing specifies semiannual fixed payments and quarterly floating payments. Exact payment dates, day counts, calendar adjustments and reset rules remain research assumptions.
 
 See [assumptions and issues](docs/assumptions_and_issues.md) before using the case terms in a model.
 

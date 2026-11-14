@@ -13,7 +13,7 @@ in `Net_Cashflow`, preventing payment-date double counting.
 
 ## Fixed Leg
 
-The fixed leg uses the configured annual schedule, Actual/360 accrual fractions, payment lag, and
+The fixed leg uses the disclosed semiannual schedule, Actual/360 accrual fractions, payment lag, and
 business-day adjustment:
 
 ```text
@@ -21,6 +21,8 @@ PV Fixed = Notional × Fixed Rate × sum(Accrual Fraction × Discount Factor)
 ```
 
 ## Compounded SOFR Leg
+
+The floating leg uses its own quarterly schedule, as disclosed in the SEC filing.
 
 - Fully realized accrual periods use the ratio of SOFR Index values.
 - A partially realized period combines the realized SOFR Index factor through the valuation date

@@ -12,7 +12,7 @@ from .contract import IRSContract
 from .daily_mtm import _realized_net_cashflow
 from .floating_leg import SofrHistory
 from .scenario_repricing import ScenarioCurve, build_scenario_curve
-from .schedule import build_payment_schedule
+from .schedule import build_payment_schedules
 from .valuation import discounted_leg_values, price_irs
 
 
@@ -89,12 +89,12 @@ class HorizonRepricer:
             raise ValueError("Target must follow information cutoff")
         self.config, self.contract = config, contract
         self.tenors = list(config["required_pricing_tenors"])
-        self.periods = build_payment_schedule(contract)
+        self.periods = build_payment_schedules(contract)
         known = cutoff_history(history, self.cutoff)
         if self.cutoff not in known.index.index:
             raise ValueError("Missing exact cutoff SOFR Index; refusing stale forward filling")
         required_index_dates = {self.cutoff}
-        for period in self.periods:
+        for period in self.periods.floating:
             if period.payment_date > self.cutoff:
                 for date in (period.start_date, period.end_date):
                     if date <= self.cutoff:
