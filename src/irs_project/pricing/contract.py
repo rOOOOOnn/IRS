@@ -29,6 +29,7 @@ class IRSContract:
     observation_shift: bool
     lockout_days: int
     valuation_basis: str
+    floating_payment_frequency: str | None = None
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> IRSContract:
@@ -41,6 +42,11 @@ class IRSContract:
             effective_date=pd.Timestamp(contract_value(config, "effective_date")),
             maturity_date=pd.Timestamp(contract_value(config, "maturity_date")),
             fixed_payment_frequency=str(contract_value(config, "fixed_payment_frequency")),
+            floating_payment_frequency=(
+                str(contract_value(config, "floating_payment_frequency"))
+                if "floating_payment_frequency" in config["contract"]
+                else None
+            ),
             fixed_day_count=str(contract_value(config, "fixed_day_count")),
             floating_day_count=str(contract_value(config, "floating_day_count")),
             business_day_convention=str(contract_value(config, "business_day_convention")),

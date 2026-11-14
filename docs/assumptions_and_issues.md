@@ -2,13 +2,13 @@
 
 ## Verified Case Facts
 
-The supplied case material identifies a USD 10 million pay-fixed / receive-floating SOFR IRS with a 3.356% fixed rate. These facts should be rechecked against the original disclosure before the pricing phase.
+The supplied case material identifies a USD 10 million pay-fixed / receive-floating SOFR IRS with a 3.356% fixed rate. The SEC disclosure also specifies semiannual fixed payments and quarterly floating payments.
 
 ## Research Assumptions
 
 - Start date: 2023-05-01.
 - Maturity: May 2028.
-- Cash-flow conventions are not yet verified.
+- Day count, payment lag, and the exact schedule anchors are research assumptions.
 
 ## Data Definition Issues
 

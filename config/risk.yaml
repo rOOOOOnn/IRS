@@ -1,0 +1,12 @@
+risk:
+  window: 500
+  confidence_levels: [0.95, 0.99]
+  simulations: 50000
+  seed: 5003
+  ewma_decay: 0.94
+  pca_factors: 3
+  batch_size: 10000
+  forecast_horizon: 1D
+  # Defaults are fixed ex ante, not selected on test performance.
+  # Date = target realization date; Forecast_As_Of = preceding observed market date.
+  # 1D means one observed market interval, with actual calendar duration in diagnostics.

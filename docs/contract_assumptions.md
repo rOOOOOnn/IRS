@@ -1,13 +1,13 @@
 # Contract Facts and Assumptions
 
 The supplied case description verifies the USD 10,000,000 notional, 3.356% fixed rate,
-pay-fixed/receive-floating direction, and compounded SOFR reference.
+pay-fixed/receive-floating direction, compounded SOFR reference, semiannual fixed payments,
+and quarterly floating payments.
 
 The following remain research assumptions because the disclosure did not provide them:
 
 - effective date: 2023-05-01;
 - maturity date: 2028-05-01;
-- annual fixed payments;
 - Actual/360 fixed and floating day counts;
 - United States Government Bond calendar;
 - Modified Following adjustment;

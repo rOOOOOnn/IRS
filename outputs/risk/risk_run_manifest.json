@@ -1,0 +1,56 @@
+{
+  "parameters": {
+    "window": 500,
+    "confidence_levels": [
+      0.95,
+      0.99
+    ],
+    "simulations": 50000,
+    "seed": 5003,
+    "ewma_decay": 0.94,
+    "pca_factors": 3,
+    "batch_size": 10000,
+    "forecast_horizon": "1D"
+  },
+  "selected_curve_method": "monotone_convex_forward",
+  "risk_factors": [
+    "1M",
+    "3M",
+    "6M",
+    "1Y",
+    "2Y",
+    "3Y",
+    "4Y",
+    "5Y"
+  ],
+  "test_start": "2023-05-31",
+  "test_end": "2026-10-29",
+  "target_dates": 877,
+  "output_rows": 5262,
+  "successful_model_dates": 2490,
+  "failed_model_dates": 141,
+  "partial_run": false,
+  "forecast_date_meaning": "Date is realization/target date; Forecast_As_Of is cutoff EOD",
+  "horizon": "1D = next observed market interval; actual calendar duration in diagnostics",
+  "pnl": "V(target) - V(cutoff) + net settled cashflows over (cutoff,target]",
+  "future_sofr": "Deterministic cutoff-curve projection; never realized future Index",
+  "fixing_availability": "Index dated t is assumed known at end-of-day t, as main engine",
+  "negative_quantiles": "Floor output VaR/ES at zero to honor positive-loss interface",
+  "source_sha256": {
+    "config/contract.yaml": "b3bdb4b7ac0f3ba50980035617e4d9fa50d443977e3b0c121bdd63e4189d0aae",
+    "config/curve.yaml": "ea3dd1c8f86a648246ffe1a366b4f464c7d5dfe4f79a7d922c02cdbf1e5ab85b",
+    "config/project.yaml": "c3049966c705918b9a24aa3690c0daa6a4da980efbb511d4376f97809e4c694d",
+    "config/risk.yaml": "f519e074b7d9cb2e682e2548e132a1645d49fc1bc7583b68698e61d69dd499cb",
+    "outputs/curves/zero_rate_changes.csv": "97f365da22365dfe9b066b1e9934ad05d0c357b3269e4d1ac469f1e0601903f4",
+    "outputs/curves/zero_curve_panel.csv": "9d92249efbd070d1e681cdb97e268db64c9fc346c756c5c3e9bad2cd1ed00c63",
+    "outputs/curve_validation/selected_method.json": "accef5e19320520ac8d81b32b9c79e2e4aeeaa35fe465c2d6883501979570e02",
+    "outputs/pricing/irs_mtm_pnl.csv": "2983ee805c80829c01b9d52957bbb8fa5ab400ec800dcbef9532c4c854da03f0",
+    "data/processed/ois_par_rates_wide.csv": "0d8030e2aa3d8a8f9e30e509f6bf7ab8c23f4b32f1ec4fea36bbc25252a68ca4",
+    "data/processed/sofr_index.csv": "7009202a4bad3c0a16587aeaf043d452fec2f51495f0227976a57446bdf14572",
+    "data/processed/sofr_fixings.csv": "b3ce7975863901752a654a284e9b0143d06bbfe57656a19a13b8390b61c8e5a5",
+    "src/irs_project/risk/models.py": "94926cd1e044bd469afbb1d031ac348911236ec6c6456bb9631bf604e9820a38",
+    "src/irs_project/risk/rolling.py": "1285db290a1aa3edbfa85f7c0d7962e576bd534cae3540ca19187b8f69098e0c",
+    "src/irs_project/pricing/risk_horizon.py": "da43f1ef5402381fe154735fb3f94375d04f9447dab9e26eb26d1e7ecf8e2902",
+    "src/irs_project/pricing/valuation.py": "34f1ccb67330cc53e29908c23380572e2c94fac1a15b371d6032ff3fe084729b"
+  }
+}

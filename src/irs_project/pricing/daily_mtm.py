@@ -12,7 +12,7 @@ from irs_project.curves.bootstrap import build_ois_curve
 from .contract import IRSContract
 from .fixed_leg import fixed_coupon
 from .floating_leg import SofrHistory
-from .schedule import AccrualPeriod, build_payment_schedule
+from .schedule import PaymentSchedules, build_payment_schedules
 from .valuation import price_irs
 
 LOGGER = logging.getLogger(__name__)
@@ -25,7 +25,7 @@ def build_daily_valuations(
     contract: IRSContract,
     history: SofrHistory,
 ) -> pd.DataFrame:
-    periods = build_payment_schedule(contract)
+    periods = build_payment_schedules(contract)
     eligible = market.loc[market["Date"] >= contract.effective_date]
     rows: list[dict[str, Any]] = []
     for sequence, (_, market_row) in enumerate(eligible.iterrows(), start=1):
@@ -73,15 +73,19 @@ def _realized_net_cashflow(
     current_date: pd.Timestamp,
     contract: IRSContract,
     history: SofrHistory,
-    periods: list[AccrualPeriod],
+    periods: PaymentSchedules,
 ) -> float:
-    net = 0.0
-    for period in periods:
+    net = -sum(
+        fixed_coupon(contract, period)
+        for period in periods.fixed
+        if previous_date < period.payment_date <= current_date
+    )
+    for period in periods.floating:
         if previous_date < period.payment_date <= current_date:
             floating = contract.notional * (
                 history.realized_factor(period.start_date, period.end_date, current_date) - 1.0
             )
-            net += floating - fixed_coupon(contract, period)
+            net += floating
     return float(net)
 
 
@@ -96,7 +100,7 @@ def selected_method_pnl(
         & (valuations["Valuation_Status"].isin(["SUCCESS", "MATURED"]))
     ].copy()
     selected = selected.sort_values("Date").reset_index(drop=True)
-    periods = build_payment_schedule(contract)
+    periods = build_payment_schedules(contract)
     cashflows = [0.0]
     for previous, current in zip(selected["Date"][:-1], selected["Date"][1:], strict=True):
         cashflows.append(

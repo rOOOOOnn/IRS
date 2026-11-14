@@ -2,7 +2,7 @@
 
 - Selected global interpolation method: `monotone_convex_forward`.
 - Selection used Validation interior-node LOTO RMSE; Test results were excluded from method selection.
-- Initial selected-method IRS market value: USD 41,392.94.
+- Initial selected-method IRS market value: USD 28,576.12.
 - Successful selected-method P&L dates: 882.
 - Four-method valuation failures: 0.
 - Regime-dependent switching remains diagnostic rather than primary to avoid artificial MTM jumps.
@@ -35,7 +35,7 @@
 
 | Method | Mean_Absolute_Difference | Max_Absolute_Difference |
 | --- | --- | --- |
-| linear_zero | 1651.4 | 4646.23 |
-| log_linear_discount | 492.37 | 1972.3 |
+| linear_zero | 1633.62 | 4576.12 |
+| log_linear_discount | 510.81 | 1952.95 |
 | monotone_convex_forward | 0.0 | 0.0 |
-| natural_cubic_zero | 362.91 | 3562.15 |
+| natural_cubic_zero | 363.35 | 3506.04 |

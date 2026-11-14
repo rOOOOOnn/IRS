@@ -28,9 +28,13 @@ contract:
     status: ASSUMPTION
     source: Research design; exact maturity date was not disclosed
   fixed_payment_frequency:
-    value: ANNUAL
-    status: ASSUMPTION
-    source: Standard long-dated SOFR OIS convention used for research
+    value: SEMIANNUAL
+    status: VERIFIED
+    source: SEC fund derivatives schedule
+  floating_payment_frequency:
+    value: QUARTERLY
+    status: VERIFIED
+    source: SEC fund derivatives schedule
   fixed_day_count:
     value: ACT/360
     status: ASSUMPTION
