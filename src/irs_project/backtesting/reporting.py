@@ -300,9 +300,9 @@ def render_report(
             "",
             "| Model | N | Exceptions | Rate | "
             "Kupiec p | IND p | CC p | "
-            "Mean VaR | Mean ES | ES Calibration Moment 95% CI | Pinball |",
+            "Mean VaR | Mean ES | Pinball |",
             "|---|---:|---:|---:|---:|---:|---:|"
-            "---:|---:|---|---:|"
+            "---:|---:|---:|"
         ])
 
         subset = results[
@@ -310,11 +310,6 @@ def render_report(
         ]
 
         for row in subset.itertuples(index=False):
-
-            ci = (
-                f"[{fmt(row.ES_Moment_CI_Lower)}, "
-                f"{fmt(row.ES_Moment_CI_Upper)}]"
-            )
 
             lines.append(
                 f"| {row.Model} "
@@ -326,7 +321,6 @@ def render_report(
                 f"| {fmt(row.p_CC)} "
                 f"| {fmt(row.Mean_VaR)} "
                 f"| {fmt(row.Mean_ES)} "
-                f"| {ci} "
                 f"| {fmt(row.VaR_Pinball_Score)} |"
             )
 
@@ -335,6 +329,32 @@ def render_report(
             f"Expected exceedance rate: {1-confidence:.0%}.",
             ""
         ])
+
+    lines.extend([
+        "## ES Calibration Moment 95% CI",
+        "",
+        "The primary interval is asymmetric and pivotal. Its equal-tailed p-value tests "
+        "whether the mean moment is zero. The symmetric interval and absolute-tail p-value "
+        "use the same centered draws and show sensitivity to the inference method.",
+        "",
+        "| Model | Level | Moment mean | Pivotal CI | Equal-tailed p | Zero in pivotal CI | "
+        "Symmetric CI | Absolute-tail p | Zero in symmetric CI |",
+        "|---|---:|---:|---|---:|:---:|---|---:|:---:|",
+    ])
+    for row in results.itertuples(index=False):
+        lower, upper = row.ES_Moment_CI_Lower, row.ES_Moment_CI_Upper
+        sym_lower, sym_upper = row.ES_Moment_Symmetric_CI_Lower, row.ES_Moment_Symmetric_CI_Upper
+        pivotal_zero = "N/A" if pd.isna(lower) else ("Yes" if lower <= 0 <= upper else "No")
+        symmetric_zero = (
+            "N/A" if pd.isna(sym_lower) else ("Yes" if sym_lower <= 0 <= sym_upper else "No")
+        )
+        lines.append(
+            f"| {row.Model} | {row.Confidence_Level:.0%} | {fmt(row.ES_Moment_Mean)} "
+            f"| [{fmt(lower)}, {fmt(upper)}] | {row.ES_Bootstrap_p:.6g} | {pivotal_zero} "
+            f"| [{fmt(sym_lower)}, {fmt(sym_upper)}] "
+            f"| {row.ES_Bootstrap_Symmetric_p:.6g} | {symmetric_zero} |"
+        )
+    lines.append("")
 
     lines.extend([
         "## Excluded-Date Diagnostics",

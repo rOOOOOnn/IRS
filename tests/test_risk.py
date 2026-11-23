@@ -139,6 +139,11 @@ def copy_inputs(tmp_path):
         "src/irs_project/risk/rolling.py",
         "src/irs_project/pricing/risk_horizon.py",
         "src/irs_project/pricing/valuation.py",
+        "src/irs_project/pricing/contract.py",
+        "src/irs_project/pricing/daily_mtm.py",
+        "src/irs_project/pricing/floating_leg.py",
+        "src/irs_project/pricing/scenario_repricing.py",
+        "src/irs_project/curves/export.py",
     ]
     for relative in paths:
         destination = tmp_path / relative
@@ -226,3 +231,18 @@ def test_insufficient_window_is_logged(tmp_path):
     assert len(forecasts) == 6
     assert forecasts[["VaR", "ES"]].isna().all().all()
     assert diagnostics.Reason.str.contains("Insufficient valid rolling history").all()
+
+
+
+def test_risk_manifest_hash_normalizes_text_only(tmp_path):
+    from irs_project.risk.rolling import source_sha256
+
+    expected = b"Date,Value\n2024-01-01,1\n"
+    lf = tmp_path / "lf.csv"
+    crlf = tmp_path / "crlf.csv"
+    lf.write_bytes(expected)
+    crlf.write_bytes(expected.replace(b"\n", b"\r\n"))
+    assert source_sha256(lf) == source_sha256(crlf)
+    binary = tmp_path / "raw.xlsx"
+    binary.write_bytes(crlf.read_bytes())
+    assert source_sha256(binary) != source_sha256(lf)

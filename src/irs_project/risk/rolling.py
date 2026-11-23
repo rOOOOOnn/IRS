@@ -23,6 +23,14 @@ from .models import MODELS, OUTPUT_COLUMNS, empirical_var_es, generate_shocks
 LOGGER = logging.getLogger(__name__)
 
 
+def source_sha256(path: Path) -> str:
+    """Hash canonical LF bytes for known text formats and raw bytes otherwise."""
+    data = path.read_bytes()
+    if path.suffix.lower() in {".csv", ".json", ".md", ".py", ".txt", ".yaml", ".yml"}:
+        data = data.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    return hashlib.sha256(data).hexdigest()
+
+
 def read_dates(path):
     frame = pd.read_csv(path, parse_dates=["Date"])
     if frame["Date"].isna().any() or frame["Date"].duplicated().any():
@@ -104,9 +112,6 @@ def run(root: Path, *, max_dates=None, overrides=None):
     validate_config(config, len(tenors))
     contract = IRSContract.from_config(load_yaml(root / "config/contract.yaml"))
     contract.validate()
-    # The shared engine currently does not implement alternate SOFR observation conventions.
-    if contract.observation_lookback_days or contract.observation_shift or contract.lockout_days:
-        raise ValueError("Configured SOFR observation conventions are unsupported by shared engine")
     if contract.valuation_basis != "EX_CASHFLOW":
         raise ValueError("Risk P&L requires the existing EX_CASHFLOW pricing convention")
     selected_path = root / "outputs/curve_validation/selected_method.json"
@@ -297,6 +302,11 @@ def run(root: Path, *, max_dates=None, overrides=None):
         "src/irs_project/risk/rolling.py",
         "src/irs_project/pricing/risk_horizon.py",
         "src/irs_project/pricing/valuation.py",
+        "src/irs_project/pricing/contract.py",
+        "src/irs_project/pricing/daily_mtm.py",
+        "src/irs_project/pricing/floating_leg.py",
+        "src/irs_project/pricing/scenario_repricing.py",
+        "src/irs_project/curves/export.py",
     ]
     manifest = {
         "parameters": config,
@@ -315,8 +325,9 @@ def run(root: Path, *, max_dates=None, overrides=None):
         "future_sofr": "Deterministic cutoff-curve projection; never realized future Index",
         "fixing_availability": "Index dated t is assumed known at end-of-day t, as main engine",
         "negative_quantiles": "Floor output VaR/ES at zero to honor positive-loss interface",
+        "source_hash_policy": "SHA-256 with LF-normalized text and raw binary bytes",
         "source_sha256": {
-            p: hashlib.sha256((root / p).read_bytes()).hexdigest() for p in manifest_paths
+            p: source_sha256(root / p) for p in manifest_paths
         },
     }
     (out / "risk_run_manifest.json").write_text(json.dumps(manifest, indent=2))

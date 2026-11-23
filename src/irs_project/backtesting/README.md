@@ -40,22 +40,30 @@ Z_t = \frac{\max(L_t - \mathrm{VaR}_t, 0)}{1 - \alpha}
       - (\mathrm{ES}_t - \mathrm{VaR}_t).
 $$
 
-Under correct joint VaR and ES calibration, $\mathbb{E}[Z_t]=0$. Mean ES is the average forecast ES amount. The moment mean is the sample average of $Z_t$, and the 95% bootstrap interval estimates that moment mean. All amounts in the table are in USD.
+Under correct joint VaR and ES calibration, $\mathbb{E}[Z_t]=0$. Mean ES is the average forecast ES amount. The moment mean is the sample average of $Z_t$. The 95% confidence intervals estimate that moment mean, while the table's Mean ES column reports forecast amounts. All amounts are in USD.
 
-| Model | ES Level | Mean ES | ES Calibration Moment Mean | ES Calibration Moment 95% CI | Bootstrap p | Zero in CI |
-|---|---:|---:|---:|---:|---:|:---:|
-| HS | 95% | 51,707.35 | -10,697.52 | [-14,505.86, -6,889.17] | 0.00049975 | No |
-| EWMA | 95% | 36,111.09 | 2,627.97 | [-2,271.76, 7,527.71] | 0.296852 | Yes |
-| PCA_MC | 95% | 44,975.90 | -3,645.73 | [-7,181.74, -109.72] | 0.043978 | No |
-| HS | 99% | 78,230.25 | -11,266.10 | [-16,918.14, -5,614.07] | 0.003998 | No |
-| EWMA | 99% | 46,687.74 | 15,938.52 | [1,191.31, 30,685.73] | 0.035982 | No |
-| PCA_MC | 99% | 58,157.38 | 2,779.60 | [-5,729.26, 11,288.45] | 0.547726 | Yes |
+The primary basic (pivotal) interval subtracts the 97.5th and 2.5th quantiles of the centered bootstrap means from the sample mean. The equal-tailed p-value for a zero mean doubles the smaller tail probability on the same interpolated quantile grid. Ties are included on both sides, and the tail probability has a Monte Carlo floor of 1/(B + 1) for B draws. The gap-aware circular bootstrap uses the same block length (10), 2,000 simulations and seed (5003) for all groups. The original symmetric interval and absolute-tail p-value remain available as sensitivity diagnostics.
 
-At 95%, the interval contains zero for EWMA and lies below zero for HS and PCA_MC. At 99%, it contains zero for PCA_MC, lies below zero for HS, and lies above zero for EWMA. Intervals excluding zero provide evidence of a nonzero unconditional moment under the bootstrap assumptions. Intervals containing zero are compatible with a zero moment. The moment also depends on VaR, so departures can reflect errors in either forecast.
+| Model | ES Level | Mean ES | ES Calibration Moment Mean | Pivotal 95% CI | Equal-tailed p | Zero in CI |
+|---|---:|---:|---:|---|---:|:---:|
+| HS | 95% | 51,708.33 | -10,699.12 | [-14,759.24, -7,018.41] | 0.0009995 | No |
+| EWMA | 95% | 36,109.73 | 2,629.41 | [-2,879.01, 6,942.79] | 0.304914 | Yes |
+| PCA_MC | 95% | 44,975.66 | -3,645.62 | [-7,703.36, -415.10] | 0.020949 | No |
+| HS | 99% | 78,239.76 | -11,273.62 | [-18,374.10, -6,428.83] | 0.0009995 | No |
+| EWMA | 99% | 46,685.99 | 15,941.76 | [-738.47, 29,510.29] | 0.0586224 | Yes |
+| PCA_MC | 99% | 58,157.06 | 2,781.40 | [-6,965.46, 10,324.80] | 0.508363 | Yes |
+
+For EWMA at 99%, zero lies in the pivotal interval [-738.47, 29,510.29] (p = 0.0586224). The symmetric interval [1,193.23, 30,690.29] excludes zero (absolute-tail p = 0.035982). The remaining groups have the same zero-inclusion decision under both constructions. The moment depends on VaR, so departures can reflect errors in either forecast.
 
 ## Overall Findings
 
 EWMA's 95% VaR exception rate is the closest to its target, and its 95% ES diagnostic is compatible with a zero mean. At 99%, the limited tail observations prevent a reliable ranking by VaR coverage. The ES results add information about tail calibration and vary across levels, so the evidence supports conclusions specific to each metric and confidence level.
+
+## Short-Segment Sensitivity
+
+The common sample splits into 25 contiguous segments. Three segments have fewer than 10 observations (lengths 8, 9, and 9). A segment of size m is selected with probability m/830 per block, then contributes at most min(m, 10) observations. Accounting for the truncated final block, the short segments comprise 3.13% of the original sample and 2.74% of expected bootstrap observations. The implied offsets in expected bootstrap mean on this sample range from USD 3.59 to USD 83.95 across the six groups.
+
+A sensitivity run sampled segments in proportion to their lengths divided by the available block size, including the final truncated block. This restores observation-proportional weight in expectation. With 2,000 draws, all six pivotal zero-inclusion decisions were unchanged. EWMA at 99% remains sensitive to the interval construction, while this weighting check supports keeping the original block sampler for this dataset.
 
 ## Limitations
 

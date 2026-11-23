@@ -87,6 +87,26 @@ def contiguous_residual_segments(group, confidence):
     return segments
 
 
+def _equal_tailed_p(draws, observed):
+    """Invert the linearly interpolated pivotal interval for H0: E[Z] = 0.
+
+    Count ties on both sides, and bound either tail below by 1/(B+1)
+    to avoid an estimated zero probability with B Monte Carlo draws.
+    """
+    ordered = np.sort(draws)
+    count = len(ordered)
+    left = np.searchsorted(ordered, observed, side="left")
+    right = np.searchsorted(ordered, observed, side="right")
+    if left < right:
+        lower_tail = (right - 1) / (count - 1)
+        upper_tail = 1 - left / (count - 1)
+    else:
+        # Interpolate between distinct order statistics using the same grid as np.quantile.
+        rank = np.interp(observed, ordered, np.linspace(0, 1, count))
+        lower_tail, upper_tail = rank, 1 - rank
+    return round(min(1.0, 2 * max(1 / (count + 1), min(lower_tail, upper_tail))), 15)
+
+
 def bootstrap_es_ci(
     group,
     confidence,
@@ -118,7 +138,10 @@ def bootstrap_es_ci(
             "ES_Moment_Mean": np.nan,
             "ES_Moment_CI_Lower": np.nan,
             "ES_Moment_CI_Upper": np.nan,
+            "ES_Moment_Symmetric_CI_Lower": np.nan,
+            "ES_Moment_Symmetric_CI_Upper": np.nan,
             "ES_Bootstrap_p": np.nan,
+            "ES_Bootstrap_Symmetric_p": np.nan,
             "ES_Segment_Count": len(segments)
         }
 
@@ -176,20 +199,18 @@ def bootstrap_es_ci(
         )
     )
 
-    ci_lower = observed_mean - radius
-    ci_upper = observed_mean + radius
-
-    p_value = (
-        1 + np.sum(
-            np.abs(bootstrap_means)
-            >= abs(observed_mean)
-        )
+    q025, q975 = np.quantile(bootstrap_means, [0.025, 0.975])
+    symmetric_p = (
+        1 + np.count_nonzero(np.abs(bootstrap_means) >= abs(observed_mean))
     ) / (simulations + 1)
 
     return {
         "ES_Moment_Mean": observed_mean,
-        "ES_Moment_CI_Lower": float(ci_lower),
-        "ES_Moment_CI_Upper": float(ci_upper),
-        "ES_Bootstrap_p": float(p_value),
-        "ES_Segment_Count": len(segments)
+        "ES_Moment_CI_Lower": float(observed_mean - q975),
+        "ES_Moment_CI_Upper": float(observed_mean - q025),
+        "ES_Moment_Symmetric_CI_Lower": observed_mean - radius,
+        "ES_Moment_Symmetric_CI_Upper": observed_mean + radius,
+        "ES_Bootstrap_p": _equal_tailed_p(bootstrap_means, observed_mean),
+        "ES_Bootstrap_Symmetric_p": float(symmetric_p),
+        "ES_Segment_Count": len(segments),
     }

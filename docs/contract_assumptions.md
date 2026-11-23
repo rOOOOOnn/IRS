@@ -16,5 +16,6 @@ The following remain research assumptions because the disclosure did not provide
 - ex-cashflow daily valuation basis;
 - single-curve SOFR projection and discounting.
 
-Every item, status, and source note is stored in `config/contract.yaml`. Changing a convention does
-not require changing pricing code.
+Every item, status, and source note is stored in `config/contract.yaml`. The compounded-SOFR
+engine supports zero lookback, no observation shift, and zero lockout. Contract validation
+rejects any other values for these three settings.

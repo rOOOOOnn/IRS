@@ -25,7 +25,9 @@ def build_daily_valuations(
     contract: IRSContract,
     history: SofrHistory,
 ) -> pd.DataFrame:
+    contract.validate()
     periods = build_payment_schedules(contract)
+    market_by_date = market.set_index("Date")
     eligible = market.loc[market["Date"] >= contract.effective_date]
     rows: list[dict[str, Any]] = []
     for sequence, (_, market_row) in enumerate(eligible.iterrows(), start=1):
@@ -35,6 +37,12 @@ def build_daily_valuations(
             for tenor, column in curve_config["tenors"].items()
             if column in market_row and pd.notna(market_row[column])
         }
+        published = history.index.index[history.index.index <= valuation_date]
+        index_date = published.max()
+        project_carry = any(
+            period.start_date < valuation_date < period.end_date
+            for period in periods.floating
+        ) and index_date != valuation_date
         for method in methods:
             record = {
                 "Date": valuation_date,
@@ -46,10 +54,28 @@ def build_daily_valuations(
                 "Accrued_Floating": float("nan"),
                 "Valuation_Status": "FAILED",
                 "Failure_Reason": "",
+                "SOFR_Index_As_Of": index_date,
+                "Projected_SOFR_Carry_Factor": float("nan"),
             }
             try:
+                valuation_history = history
+                if project_carry:
+                    if index_date not in market_by_date.index:
+                        raise ValueError("Missing OIS curve inputs for the last SOFR Index date")
+                    prior = market_by_date.loc[index_date]
+                    prior_quotes = {
+                        tenor: float(prior[column])
+                        for tenor, column in curve_config["tenors"].items()
+                        if column in prior and pd.notna(prior[column])
+                    }
+                    prior_curve = build_ois_curve(index_date, prior_quotes, method, curve_config)
+                    valuation_history, carry = history.project_valuation_carry(
+                        valuation_date, index_date, prior_curve
+                    )
+                    record["Projected_SOFR_Carry_Factor"] = carry
+                # Build today last because QuantLib curve construction sets a global date.
                 curve = build_ois_curve(valuation_date, quotes, method, curve_config)
-                valuation = price_irs(valuation_date, curve, contract, history, periods)
+                valuation = price_irs(valuation_date, curve, contract, valuation_history, periods)
                 record.update(
                     {
                         "PV_Fixed": valuation.pv_fixed,

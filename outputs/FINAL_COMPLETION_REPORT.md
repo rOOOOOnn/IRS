@@ -1,4 +1,4 @@
-# Final Completion Report
+# Curve and Pricing Completion Report
 
 - Selected global interpolation method: `monotone_convex_forward`.
 - Selection used Validation interior-node LOTO RMSE; Test results were excluded from method selection.
@@ -7,8 +7,8 @@
 - Four-method valuation failures: 0.
 - Regime-dependent switching remains diagnostic rather than primary to avoid artificial MTM jumps.
 - Contract dates and undisclosed cash-flow conventions remain explicit assumptions in `config/contract.yaml`.
-- `zero_curve_panel.csv`, `zero_rate_changes.csv`, and the scenario repricing interface are ready for Member A.
-- `irs_mtm_pnl.csv` is ready for Member B.
+- `zero_curve_panel.csv`, `zero_rate_changes.csv`, and the scenario repricing interface supply the rolling risk forecasts.
+- `irs_mtm_pnl.csv` supplies cashflow-adjusted P&L for backtesting.
 
 ## Method Comparison
 
@@ -35,7 +35,7 @@
 
 | Method | Mean_Absolute_Difference | Max_Absolute_Difference |
 | --- | --- | --- |
-| linear_zero | 1633.62 | 4576.12 |
-| log_linear_discount | 510.81 | 1952.95 |
+| linear_zero | 1633.59 | 4576.12 |
+| log_linear_discount | 510.79 | 1952.95 |
 | monotone_convex_forward | 0.0 | 0.0 |
-| natural_cubic_zero | 363.35 | 3506.04 |
+| natural_cubic_zero | 363.37 | 3506.04 |

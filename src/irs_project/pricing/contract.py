@@ -52,9 +52,9 @@ class IRSContract:
             business_day_convention=str(contract_value(config, "business_day_convention")),
             holiday_calendar=str(contract_value(config, "holiday_calendar")),
             payment_lag_days=int(contract_value(config, "payment_lag_days")),
-            observation_lookback_days=int(contract_value(config, "observation_lookback_days")),
+            observation_lookback_days=contract_value(config, "observation_lookback_days"),
             observation_shift=bool(contract_value(config, "observation_shift")),
-            lockout_days=int(contract_value(config, "lockout_days")),
+            lockout_days=contract_value(config, "lockout_days"),
             valuation_basis=str(contract_value(config, "valuation_basis")),
         )
 
@@ -69,3 +69,7 @@ class IRSContract:
             raise ValueError("Only pay-fixed/receive-floating is supported in this project")
         if self.floating_reference != "COMPOUNDED_SOFR":
             raise ValueError("Only compounded SOFR is supported")
+
+        for name in ("observation_lookback_days", "observation_shift", "lockout_days"):
+            if getattr(self, name) != 0:
+                raise ValueError(f"Unsupported SOFR convention: {name} must be zero or false")

@@ -10,8 +10,9 @@ import numpy as np
 import pandas as pd
 import QuantLib as ql
 
+from irs_project.curves.export import tenor_dates
 from irs_project.utils.conventions import day_count_from_name
-from irs_project.utils.dates import DateLike, tenor_to_period, to_ql_date, to_timestamp
+from irs_project.utils.dates import DateLike, to_ql_date, to_timestamp
 
 from .contract import IRSContract
 from .floating_leg import SofrHistory
@@ -68,10 +69,9 @@ def build_scenario_curve(
     day_counter = day_count_from_name(curve_config["curve"]["reference_day_count"])
     valuation_ql = to_ql_date(valuation)
     pairs = []
-    for tenor, shock in zero_rate_shocks.items():
-        maturity = valuation_ql + tenor_to_period(tenor)
-        time = day_counter.yearFraction(valuation_ql, maturity)
-        pairs.append((float(time), float(shock)))
+    for tenor, maturity in tenor_dates(valuation, list(zero_rate_shocks), curve_config).items():
+        time = day_counter.yearFraction(valuation_ql, to_ql_date(maturity))
+        pairs.append((float(time), float(zero_rate_shocks[tenor])))
     pairs.sort()
     return ScenarioCurve(
         valuation_date=valuation,
