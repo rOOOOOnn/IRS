@@ -11,17 +11,13 @@ import pandas as pd
 import yaml
 
 from irs_project.backtesting import backtest
-
-from irs_project.backtesting.es_calibration import (
-    bootstrap_es_ci
-)
-
+from irs_project.backtesting.es_calibration import bootstrap_es_ci
 from irs_project.backtesting.reporting import (
-    validate_and_scope,
     common_dates,
     coverage,
+    plot_loss_vs_var,
     render_report,
-    plot_loss_vs_var
+    validate_and_scope,
 )
 
 
@@ -200,6 +196,35 @@ def main():
     results.to_csv(
         output / "backtest_results.csv",
         index=False
+    )
+    
+    # Export updated model comparison results
+    comparison_columns = [
+    "Model",
+    "Confidence_Level",
+    "Observations",
+    "Exceptions",
+    "Exception_Rate",
+    "Expected_Rate",
+    "LR_UC",
+    "p_UC",
+    "LR_IND",
+    "p_IND",
+    "LR_CC",
+    "p_CC",
+    "Mean_VaR",
+    "Mean_ES",
+    "ES_Moment_Mean",
+    "ES_CI_Lower",
+    "ES_CI_Upper",
+    "VaR_Pinball_Score",
+    ]
+
+    comparison = results[comparison_columns].copy()
+
+    comparison.to_csv(
+    output / "model_comparison.csv",
+    index=False
     )
 
     # Report excluded forecasts without filling.

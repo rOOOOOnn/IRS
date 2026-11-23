@@ -3,21 +3,9 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from irs_project.backtesting.backtest import (
-    kupiec_test,
-    christoffersen_test
-)
-
-from irs_project.backtesting.es_calibration import (
-    es_identification,
-    bootstrap_es_ci
-)
-
-from irs_project.backtesting.reporting import (
-    common_dates,
-    coverage,
-    validate_and_scope
-)
+from irs_project.backtesting.backtest import christoffersen_test, kupiec_test
+from irs_project.backtesting.es_calibration import bootstrap_es_ci, es_identification
+from irs_project.backtesting.reporting import common_dates, coverage, validate_and_scope
 
 
 def test_kupiec_no_exceedances():
