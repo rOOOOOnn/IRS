@@ -94,9 +94,9 @@ def bootstrap_es_ci(
     simulations=2000,
     seed=5003
 ):
-    """Estimate a 95% CI using a gap-aware circular block bootstrap.
+    """Estimate a 95% CI for the mean ES calibration moment.
 
-    This is an exploratory ES calibration diagnostic.
+    The gap-aware circular block bootstrap is exploratory and unconditional.
     """
 
     if block_length < 1 or simulations < 100:
@@ -116,8 +116,8 @@ def bootstrap_es_ci(
     if n < 40:
         return {
             "ES_Moment_Mean": np.nan,
-            "ES_CI_Lower": np.nan,
-            "ES_CI_Upper": np.nan,
+            "ES_Moment_CI_Lower": np.nan,
+            "ES_Moment_CI_Upper": np.nan,
             "ES_Bootstrap_p": np.nan,
             "ES_Segment_Count": len(segments)
         }
@@ -188,8 +188,8 @@ def bootstrap_es_ci(
 
     return {
         "ES_Moment_Mean": observed_mean,
-        "ES_CI_Lower": float(ci_lower),
-        "ES_CI_Upper": float(ci_upper),
+        "ES_Moment_CI_Lower": float(ci_lower),
+        "ES_Moment_CI_Upper": float(ci_upper),
         "ES_Bootstrap_p": float(p_value),
         "ES_Segment_Count": len(segments)
     }

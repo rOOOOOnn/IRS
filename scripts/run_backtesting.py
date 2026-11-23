@@ -13,6 +13,7 @@ import yaml
 from irs_project.backtesting import backtest
 from irs_project.backtesting.es_calibration import bootstrap_es_ci
 from irs_project.backtesting.reporting import (
+    classify_exclusions,
     common_dates,
     coverage,
     plot_loss_vs_var,
@@ -161,12 +162,12 @@ def main():
 
     def es_decision(row):
 
-        if pd.isna(row["ES_CI_Lower"]):
+        if pd.isna(row["ES_Moment_CI_Lower"]):
             return "UNAVAILABLE"
 
         if (
-            row["ES_CI_Lower"] > 0
-            or row["ES_CI_Upper"] < 0
+            row["ES_Moment_CI_Lower"] > 0
+            or row["ES_Moment_CI_Upper"] < 0
         ):
             return "ZERO_OUTSIDE_CI"
 
@@ -183,6 +184,13 @@ def main():
     output = root / "outputs/backtesting"
     output.mkdir(parents=True, exist_ok=True)
 
+    failed, failure_summary = classify_exclusions(
+        aligned, shared, alignment, diagnostics
+    )
+    counts["Failed_Model_Diagnostics"] = len(
+        failed.loc[failed["Status"].eq("FAILED"), ["Date", "Model"]].drop_duplicates()
+    )
+
     aligned.to_csv(
         output / "backtest_detail.csv",
         index=False
@@ -197,55 +205,35 @@ def main():
         output / "backtest_results.csv",
         index=False
     )
-    
+
     # Export updated model comparison results
     comparison_columns = [
-    "Model",
-    "Confidence_Level",
-    "Observations",
-    "Exceptions",
-    "Exception_Rate",
-    "Expected_Rate",
-    "LR_UC",
-    "p_UC",
-    "LR_IND",
-    "p_IND",
-    "LR_CC",
-    "p_CC",
-    "Mean_VaR",
-    "Mean_ES",
-    "ES_Moment_Mean",
-    "ES_CI_Lower",
-    "ES_CI_Upper",
-    "VaR_Pinball_Score",
+        "Model",
+        "Confidence_Level",
+        "Observations",
+        "Exceptions",
+        "Exception_Rate",
+        "Expected_Rate",
+        "LR_UC",
+        "p_UC",
+        "LR_IND",
+        "p_IND",
+        "LR_CC",
+        "p_CC",
+        "Mean_VaR",
+        "Mean_ES",
+        "ES_Moment_Mean",
+        "ES_Moment_CI_Lower",
+        "ES_Moment_CI_Upper",
+        "VaR_Pinball_Score",
     ]
 
     comparison = results[comparison_columns].copy()
 
-    comparison.to_csv(
-    output / "model_comparison.csv",
-    index=False
-    )
+    comparison.to_csv(output / "model_comparison.csv", index=False)
 
-    # Report excluded forecasts without filling.
-    excluded_dates = sorted(
-        set(aligned["Date"]) - set(shared["Date"])
-    )
-
-    failed = aligned[
-        aligned["Date"].isin(excluded_dates)
-    ].copy()
-
-    failed.to_csv(
-        output / "excluded_forecasts.csv",
-        index=False
-    )
-
-    failure_summary = (
-        failed["Invalid_Reason"]
-        .replace("", "OTHER_MODEL_FAILED")
-        .value_counts()
-    )
+    failed.to_csv(output / "excluded_forecasts.csv", index=False)
+    failure_summary.to_csv(output / "excluded_date_summary.csv", index=False)
 
     # ---------------------------------------
     # 8. Generate report and figures
@@ -280,8 +268,8 @@ def main():
         "p_UC",
         "p_IND",
         "p_CC",
-        "ES_CI_Lower",
-        "ES_CI_Upper"
+        "ES_Moment_CI_Lower",
+        "ES_Moment_CI_Upper"
     ]
 
     print(

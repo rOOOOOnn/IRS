@@ -5,7 +5,12 @@ import pytest
 
 from irs_project.backtesting.backtest import christoffersen_test, kupiec_test
 from irs_project.backtesting.es_calibration import bootstrap_es_ci, es_identification
-from irs_project.backtesting.reporting import common_dates, coverage, validate_and_scope
+from irs_project.backtesting.reporting import (
+    classify_exclusions,
+    common_dates,
+    coverage,
+    validate_and_scope,
+)
 
 
 def test_kupiec_no_exceedances():
@@ -147,9 +152,8 @@ def test_es_bootstrap_handles_gaps():
 
     assert result["ES_Segment_Count"] == 2
 
-    assert np.isfinite(
-        result["ES_CI_Lower"]
-    )
+    assert result["ES_Moment_CI_Lower"] == -5
+    assert result["ES_Moment_CI_Upper"] == -5
 
 
 def test_information_cutoff_rejects_lookahead():
@@ -253,3 +257,48 @@ def test_duplicate_diagnostics_rejected():
             diagnostics,
             config
         )
+
+
+
+@pytest.mark.parametrize("corroborated", [True, False])
+def test_interval_exclusion_with_nonbusiness_cutoff(corroborated):
+    date = pd.Timestamp("2026-01-06")
+    cutoff = date - pd.Timedelta(days=1)
+    status = "PNL_INTERVAL_MISMATCH"
+    aligned = pd.DataFrame({
+        "Date": [date, date],
+        "Model": ["HS", "HS"],
+        "Confidence_Level": [0.95, 0.99],
+        "Status": ["FAILED", "FAILED"],
+        "Reason": ["ValueError: Realized PnL interval differs from forecast horizon"] * 2,
+        "Invalid_Reason": ["TIME_ALIGNMENT"] * 2,
+        "Alignment_Status": [status] * 2,
+        "Information_Cutoff": [cutoff] * 2,
+        "PnL_Previous_Date": [cutoff - pd.Timedelta(days=1)] * 2,
+        "Valid": [False, False],
+    })
+    alignment = pd.DataFrame({
+        "Date": [date],
+        "Data_Issues": [
+            "NONBUSINESS_CUTOFF;PNL_INTERVAL_MISMATCH"
+            if corroborated else "NONBUSINESS_CUTOFF"
+        ],
+    })
+    diagnostics = pd.DataFrame({
+        "Date": [date],
+        "Model": ["HS"],
+        "Information_Cutoff": [cutoff],
+        "PnL_Alignment_Status": [status],
+    })
+
+    excluded, summary = classify_exclusions(
+        aligned, aligned.iloc[:0], alignment, diagnostics
+    )
+    expected = "REALIZED_PNL_INTERVAL_MISMATCH" if corroborated else "OTHER_UNCLASSIFIED"
+    assert excluded["Failure_Category"].tolist() == [expected, expected]
+    assert excluded["Reason"].tolist() == aligned["Reason"].tolist()
+    assert excluded["Invalid_Reason"].tolist() == aligned["Invalid_Reason"].tolist()
+    assert excluded["Failure_Category_Detail"].str.len().gt(0).all()
+    counts = summary.set_index("Failure_Category")
+    assert counts.loc[expected].tolist() == [1, 2]
+    assert counts.loc["TOTAL"].tolist() == [1, 2]

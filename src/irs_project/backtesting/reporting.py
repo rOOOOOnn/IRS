@@ -10,6 +10,13 @@ import pandas as pd
 
 MODELS = ("HS", "EWMA", "PCA_MC")
 LEVELS = (0.95, 0.99)
+FORECAST_KEYS = {(model, level) for model in MODELS for level in LEVELS}
+
+NON_BUSINESS = "NON_BUSINESS_FORECAST_OR_CUTOFF_DATE"
+INTERVAL = "REALIZED_PNL_INTERVAL_MISMATCH"
+MISSING_SOFR = "MISSING_EXACT_CUTOFF_SOFR_INDEX"
+OTHER = "OTHER_UNCLASSIFIED"
+FAILURE_CATEGORIES = (NON_BUSINESS, INTERVAL, MISSING_SOFR, OTHER)
 
 
 def validate_and_scope(df, alignment, diagnostics, config):
@@ -117,12 +124,6 @@ def validate_and_scope(df, alignment, diagnostics, config):
 def common_dates(df):
     """Require all three models at both confidence levels."""
 
-    required = {
-        (model, level)
-        for model in MODELS
-        for level in LEVELS
-    }
-
     valid = df[df["Valid"]]
 
     dates = []
@@ -137,8 +138,8 @@ def common_dates(df):
         )
 
         if (
-            combinations == required
-            and len(group) == len(required)
+            combinations == FORECAST_KEYS
+            and len(group) == len(FORECAST_KEYS)
         ):
             dates.append(date)
 
@@ -151,9 +152,13 @@ def coverage(df, common):
     candidates = df["Date"].nunique()
     eligible = common["Date"].nunique()
 
-    if not candidates or len(df) != candidates * 6:
+    if not candidates or any(
+        len(group) != len(FORECAST_KEYS)
+        or set(zip(group["Model"], group["Confidence_Level"])) != FORECAST_KEYS
+        for _, group in df.groupby("Date")
+    ):
         raise ValueError(
-            "Expected exactly six forecasts per candidate date"
+            "Expected exactly six forecasts per candidate date, one per model and confidence level"
         )
 
     return {
@@ -161,6 +166,98 @@ def coverage(df, common):
         "Common_Valid_Dates": eligible,
         "Failed_Dates": candidates - eligible
     }
+
+
+def _failure_evidence(row):
+    """Classify an invalid forecast using its model diagnostic and alignment."""
+    if row.Status != "FAILED" or pd.isna(row.Reason):
+        return OTHER, "No failed model diagnostic with a reason"
+
+    reason = row.Reason
+    if (
+        pd.isna(row.Diagnostic_Cutoff)
+        or row.Diagnostic_Cutoff != row.Information_Cutoff
+        or row.Diagnostic_Alignment_Status != row.Alignment_Status
+    ):
+        return OTHER, "Model diagnostic and P&L alignment disagree"
+
+    issues = set(str(row.Alignment_Data_Issues).split(";"))
+    if "Realized PnL interval differs from forecast horizon" in reason:
+        category = INTERVAL
+        confirmed = (
+            row.Alignment_Status == "PNL_INTERVAL_MISMATCH"
+            and "PNL_INTERVAL_MISMATCH" in issues
+            and pd.notna(row.PnL_Previous_Date)
+            and row.PnL_Previous_Date != row.Information_Cutoff
+        )
+    elif "Nonbusiness forecast/cutoff date" in reason:
+        category = NON_BUSINESS
+        confirmed = bool(issues & {"NONBUSINESS_TARGET", "NONBUSINESS_CUTOFF"})
+    elif "Missing exact cutoff SOFR Index" in reason:
+        category = MISSING_SOFR
+        confirmed = "MISSING_CUTOFF_SOFR_INDEX" in issues
+    else:
+        return OTHER, "Unrecognized model diagnostic reason"
+
+    if confirmed:
+        return category, "Confirmed by P&L alignment"
+    return OTHER, f"P&L alignment did not corroborate {category}"
+
+
+def classify_exclusions(aligned, shared, alignment, diagnostics):
+    """Attach audit evidence and one mutually exclusive category per date."""
+    excluded = aligned.loc[~aligned["Date"].isin(shared["Date"])]
+    alignment_audit = alignment[["Date", "Data_Issues"]].rename(
+        columns={"Data_Issues": "Alignment_Data_Issues"}
+    )
+    diagnostic_audit = diagnostics[
+        ["Date", "Model", "Information_Cutoff", "PnL_Alignment_Status"]
+    ].rename(columns={
+        "Information_Cutoff": "Diagnostic_Cutoff",
+        "PnL_Alignment_Status": "Diagnostic_Alignment_Status",
+    })
+    alignment_audit["Date"] = pd.to_datetime(alignment_audit["Date"])
+    diagnostic_audit["Date"] = pd.to_datetime(diagnostic_audit["Date"])
+    diagnostic_audit["Diagnostic_Cutoff"] = pd.to_datetime(
+        diagnostic_audit["Diagnostic_Cutoff"]
+    )
+    excluded = excluded.merge(
+        alignment_audit, on="Date", how="left", validate="many_to_one"
+    ).merge(
+        diagnostic_audit, on=["Date", "Model"], how="left", validate="many_to_one"
+    )
+
+    excluded["Failure_Category"] = OTHER
+    excluded["Failure_Category_Detail"] = "Another forecast on this date was invalid"
+    for row in excluded.loc[~excluded["Valid"]].itertuples():
+        category, detail = _failure_evidence(row)
+        excluded.loc[row.Index, ["Failure_Category", "Failure_Category_Detail"]] = (
+            category, detail
+        )
+
+    for _, group in excluded.groupby("Date"):
+        causes = group.loc[~group["Valid"], "Failure_Category"].unique()
+        if len(causes) == 1:
+            excluded.loc[group.index, "Failure_Category"] = causes[0]
+            if causes[0] == OTHER:
+                excluded.loc[group.index[group["Valid"]], "Failure_Category_Detail"] = (
+                    "Another forecast on this date had an unclassified failure"
+                )
+        else:
+            excluded.loc[group.index, "Failure_Category"] = OTHER
+            excluded.loc[group.index, "Failure_Category_Detail"] = (
+                "No single failure category for this date: "
+                + ", ".join(sorted(causes))
+                + ". "
+                + group["Failure_Category_Detail"]
+            )
+
+    summary = excluded.groupby("Failure_Category").agg(
+        Unique_Excluded_Dates=("Date", "nunique"),
+        Excluded_Forecast_Rows=("Date", "size"),
+    ).reindex(FAILURE_CATEGORIES, fill_value=0)
+    summary.loc["TOTAL"] = summary.sum()
+    return excluded, summary.reset_index()
 
 
 def render_report(
@@ -178,9 +275,9 @@ def render_report(
         "",
         (
             f"Candidate dates: "
-            f"**{coverage_data['Candidate_Dates']}**; "
+            f"**{coverage_data['Candidate_Dates']}**, "
             f"common valid dates: "
-            f"**{coverage_data['Common_Valid_Dates']}**; "
+            f"**{coverage_data['Common_Valid_Dates']}**, "
             f"excluded dates: "
             f"**{coverage_data['Failed_Dates']}**."
         ),
@@ -203,7 +300,7 @@ def render_report(
             "",
             "| Model | N | Exceptions | Rate | "
             "Kupiec p | IND p | CC p | "
-            "Mean VaR | Mean ES | ES 95% CI | Pinball |",
+            "Mean VaR | Mean ES | ES Calibration Moment 95% CI | Pinball |",
             "|---|---:|---:|---:|---:|---:|---:|"
             "---:|---:|---|---:|"
         ])
@@ -215,8 +312,8 @@ def render_report(
         for row in subset.itertuples(index=False):
 
             ci = (
-                f"[{fmt(row.ES_CI_Lower)}, "
-                f"{fmt(row.ES_CI_Upper)}]"
+                f"[{fmt(row.ES_Moment_CI_Lower)}, "
+                f"{fmt(row.ES_Moment_CI_Upper)}]"
             )
 
             lines.append(
@@ -242,12 +339,24 @@ def render_report(
     lines.extend([
         "## Excluded-Date Diagnostics",
         "",
-        "| Failure Category | Forecast Rows |",
-        "|---|---:|"
+        "A date is excluded from the common sample if any forecast fails. "
+        "Each excluded date and all of its forecast rows share one category. "
+        "Model diagnostic reasons are checked against P&L alignment flags.",
+        (
+            f"Failed model diagnostics linked to exclusions: "
+            f"**{coverage_data['Failed_Model_Diagnostics']}** "
+            "(unique date/model pairs)."
+        ),
+        "",
+        "| Failure Category | Unique Excluded Dates | Excluded Forecast Rows |",
+        "|---|---:|---:|"
     ])
 
-    for reason, count in failure_summary.items():
-        lines.append(f"| {reason} | {count} |")
+    for row in failure_summary.itertuples(index=False):
+        lines.append(
+            f"| {row.Failure_Category} | {row.Unique_Excluded_Dates} "
+            f"| {row.Excluded_Forecast_Rows} |"
+        )
 
     lines.extend([
         "",
@@ -257,10 +366,15 @@ def render_report(
         "not proof that the model is correct.",
         "- Christoffersen uses consecutive valid intervals only.",
         "- Sparse exceedances can weaken chi-square approximations.",
-        "- ES residual: max(Loss - VaR, 0) / (1-alpha) "
-        "- (ES - VaR).",
-        "- ES confidence intervals use an exploratory "
-        "gap-aware block bootstrap.",
+        "- The ES calibration moment is `max(Loss - VaR, 0) / (1 - alpha) "
+        "- (ES - VaR)`. Its expected value is zero under correct joint "
+        "VaR and ES calibration.",
+        "- Mean ES averages the ES forecasts in USD. The 95% bootstrap "
+        "interval estimates the mean of the ES calibration moment. "
+        "These describe different quantities.",
+        "- The gap-aware circular block bootstrap provides an exploratory "
+        "unconditional ES calibration diagnostic. It cannot establish "
+        "conditional ES calibration.",
         "- Bootstrap inference assumes sufficiently "
         "stationary and weakly dependent residuals.",
         "- Bootstrap results may depend on block length.",
