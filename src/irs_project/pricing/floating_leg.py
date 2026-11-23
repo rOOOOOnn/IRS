@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from math import isfinite
 
 import pandas as pd
 
@@ -21,13 +22,18 @@ class SofrHistory:
         index_series = index.set_index("Date")["SOFR_Index"].sort_index()
         return cls(fixings=fixing_series, index=index_series)
 
-    def _value_on_or_before(
-        self, series: pd.Series, target: pd.Timestamp, as_of: pd.Timestamp
-    ) -> tuple[pd.Timestamp, float]:
-        eligible = series.loc[(series.index <= target) & (series.index <= as_of)]
-        if eligible.empty:
-            raise ValueError(f"No SOFR history available on or before {target.date()}")
-        return pd.Timestamp(eligible.index[-1]), float(eligible.iloc[-1])
+    def project_valuation_carry(
+        self, valuation_date: pd.Timestamp, index_date: pd.Timestamp, cutoff_curve: object
+    ) -> tuple[SofrHistory, float]:
+        """Create a valuation-only history with carry projected from a prior published index."""
+        if index_date >= valuation_date or index_date not in self.index.index:
+            raise ValueError("SOFR carry requires a published index strictly before valuation")
+        index = self.index.loc[:index_date].copy()
+        carry = 1.0 / cutoff_curve.discount_factor(valuation_date)
+        if not isfinite(carry) or carry <= 0:
+            raise ValueError("Invalid projected SOFR carry factor")
+        index.loc[valuation_date] = index.loc[index_date] * carry
+        return SofrHistory(self.fixings.loc[:index_date], index), carry
 
     def realized_factor(
         self,
@@ -37,10 +43,13 @@ class SofrHistory:
     ) -> float:
         if end_date > as_of:
             raise ValueError("Realized SOFR cannot use observations after the valuation date")
-        _, start_index = self._value_on_or_before(self.index, start_date, as_of)
-        _, end_index = self._value_on_or_before(self.index, end_date, as_of)
-        if start_index <= 0 or end_index <= 0:
-            raise ValueError("SOFR Index values must be positive")
+        try:
+            start_index = float(self.index.at[start_date])
+            end_index = float(self.index.at[end_date])
+        except KeyError as error:
+            raise ValueError(f"Missing exact SOFR Index on {error.args[0].date()}") from error
+        if not all(isfinite(value) and value > 0 for value in (start_index, end_index)):
+            raise ValueError("SOFR Index values must be finite and positive")
         return end_index / start_index
 
 

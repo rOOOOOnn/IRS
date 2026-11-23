@@ -35,7 +35,7 @@ Additional audit files do NOT alter the seven-column handoff schema:
 - `risk_factor_audit.csv`: every source change row with validity or an explicit exclusion reason.
 - `risk_pnl_alignment.csv`: one row per target with actual P&L interval start, realized Loss and
   `MATCHED`, `UNAVAILABLE` or `PNL_INTERVAL_MISMATCH`.
-- `risk_run_manifest.json`: parameters, source/code hashes, coverage and model assumptions.
+- `risk_run_manifest.json`: parameters, coverage, assumptions and SHA-256 hashes with LF-normalized text and raw binary bytes.
 
 A failed model/date retains its two confidence rows with empty VaR/ES; neither zero-filling nor
 scenario deletion is allowed. A mismatch between the saved P&L interval and forecast horizon is

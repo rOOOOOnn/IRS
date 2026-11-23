@@ -8,7 +8,6 @@ from scipy.stats import chi2
 
 # Project root: IRS/
 ROOT = Path(__file__).resolve().parents[3]
-OUT = ROOT / "outputs" / "backtesting"
 
 TEST_START = pd.Timestamp("2023-05-31")
 MODELS = ("HS", "EWMA", "PCA_MC")
@@ -478,51 +477,6 @@ def compare_models(results):
         ["Confidence_Level", "VaR_Pinball_Score"]
     )
 
-def main():
-    print("Loading IRS backtesting data...")
-
-    pnl, risk, alignment = read_inputs()
-    df = prepare_data(pnl, risk, alignment)
-
-    # Backtest individual models on their valid samples.
-    all_results = summarize_models(df, "ALL")
-
-    # Backtest all models on the same dates.
-    common = make_common_sample(df)
-    common_results = summarize_models(common, "COMMON")
-
-    results = pd.concat(
-        [all_results, common_results],
-        ignore_index=True,
-    )
-
-    comparison = compare_models(results)
-
-    # Create output directory.
-    OUT.mkdir(parents=True, exist_ok=True)
-
-    df.to_csv(
-        OUT / "backtest_detail.csv",
-        index=False,
-    )
-
-    results.to_csv(
-        OUT / "backtest_results.csv",
-        index=False,
-    )
-
-    comparison.to_csv(
-        OUT / "model_comparison.csv",
-        index=False,
-    )
-
-    print("\nBacktesting completed.")
-    print("\nCommon-sample model comparison:")
-    print(comparison.to_string(index=False))
-
-    print("\nResults saved in:")
-    print(OUT)
-
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit("Run scripts/run_backtesting.py to generate the official backtesting outputs.")

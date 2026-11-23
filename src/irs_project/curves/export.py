@@ -21,7 +21,7 @@ from .calibration import forward_shape_diagnostics
 LOGGER = logging.getLogger(__name__)
 
 
-def _query_dates(
+def tenor_dates(
     valuation_date: pd.Timestamp,
     tenors: list[str],
     config: dict[str, Any],
@@ -57,7 +57,7 @@ def build_daily_curve_database(
         }
         try:
             curve = build_ois_curve(valuation_date, quotes, method, config)
-            dates = _query_dates(valuation_date, tenors, config)
+            dates = tenor_dates(valuation_date, tenors, config)
             zero_row: dict[str, Any] = {
                 "Date": valuation_date,
                 "Interpolation_Method": method,

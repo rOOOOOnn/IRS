@@ -1,10 +1,19 @@
 
+import os
+import subprocess
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import pytest
 
 from irs_project.backtesting.backtest import christoffersen_test, kupiec_test
-from irs_project.backtesting.es_calibration import bootstrap_es_ci, es_identification
+from irs_project.backtesting.es_calibration import (
+    _equal_tailed_p,
+    bootstrap_es_ci,
+    es_identification,
+)
 from irs_project.backtesting.reporting import (
     classify_exclusions,
     common_dates,
@@ -302,3 +311,31 @@ def test_interval_exclusion_with_nonbusiness_cutoff(corroborated):
     counts = summary.set_index("Failure_Category")
     assert counts.loc[expected].tolist() == [1, 2]
     assert counts.loc["TOTAL"].tolist() == [1, 2]
+
+
+
+def test_equal_tailed_test_inverts_pivotal_interval_and_handles_ties():
+    draws = np.repeat([-2.0, 0.0, 1.0, 5.0], [2, 46, 48, 4])
+    left, right = np.quantile(draws, [0.025, 0.975])
+    for observed in [-10, left - 0.001, left, 0, right, right + 0.001, 10]:
+        p = _equal_tailed_p(draws, observed)
+        assert (p < 0.05) == (not left <= observed <= right)
+        assert 0 < p <= 1
+    assert _equal_tailed_p(np.zeros(100), 0) == 1
+
+
+def test_legacy_backtesting_entry_point_cannot_write_outputs(tmp_path):
+    root = Path(__file__).resolve().parents[1]
+    output = root / "outputs/backtesting/backtest_results.csv"
+    original = output.read_bytes()
+    result = subprocess.run(
+        [sys.executable, "-m", "irs_project.backtesting.backtest"],
+        cwd=tmp_path,
+        env={**os.environ, "PYTHONPATH": str(root / "src")},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "scripts/run_backtesting.py" in result.stderr
+    assert output.read_bytes() == original
+    assert not list(tmp_path.iterdir())

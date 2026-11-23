@@ -7,7 +7,7 @@ CUHK RMSC5003 group research on a USD 10 million pay-fixed, receive-compounded-S
 - **Curve selection.** Monotone-convex forward interpolation had the lowest leave-one-tenor-out RMSE in both training and validation. The selected method was fixed before the out-of-sample comparison.
 - **95% VaR.** EWMA came closest to the 5% target exception rate. Its conditional coverage test did not reject at the 5% significance level. Historical Simulation and PCA Monte Carlo produced fewer exceptions than expected, consistent with conservative VaR forecasts in this sample, and both were rejected.
 - **99% VaR.** The conditional coverage test did not reject any of the three models. With only 5 to 12 exceptions per model, the sample offers limited power to distinguish their coverage.
-- **Expected Shortfall.** The bootstrap interval for the mean ES calibration moment contains zero for EWMA at 95% and PCA Monte Carlo at 99%. The diagnostic measures unconditional calibration and depends on both VaR and ES.
+- **Expected Shortfall.** The pivotal bootstrap interval for the mean ES calibration moment contains zero for EWMA at both levels and PCA Monte Carlo at 99%. The diagnostic measures unconditional calibration and depends on both VaR and ES.
 
 ## Study Design and Sample
 
@@ -38,18 +38,21 @@ The expected exception rates are 5% at 95% VaR and 1% at 99% VaR. An exception o
 
 ## Expected Shortfall Results
 
-Mean ES is the average forecasted tail loss in USD. The ES calibration moment has a theoretical mean of zero under correct joint VaR and ES calibration. The 95% block-bootstrap confidence interval estimates the mean of this moment.
+Mean ES is the average forecasted tail loss in USD. The ES calibration moment has a theoretical mean of zero under correct joint VaR and ES calibration. The asymmetric 95% pivotal block-bootstrap interval estimates the mean of this moment.
 
-| Model | ES Level | Mean ES | ES Calibration Moment Mean | ES Calibration Moment 95% CI | Bootstrap p | Zero in CI |
-|---|---:|---:|---:|---:|---:|:---:|
-| HS | 95% | 51,707.35 | -10,697.52 | [-14,505.86, -6,889.17] | 0.00049975 | No |
-| EWMA | 95% | 36,111.09 | 2,627.97 | [-2,271.76, 7,527.71] | 0.296852 | Yes |
-| PCA_MC | 95% | 44,975.90 | -3,645.73 | [-7,181.74, -109.72] | 0.043978 | No |
-| HS | 99% | 78,230.25 | -11,266.10 | [-16,918.14, -5,614.07] | 0.003998 | No |
-| EWMA | 99% | 46,687.74 | 15,938.52 | [1,191.31, 30,685.73] | 0.035982 | No |
-| PCA_MC | 99% | 58,157.38 | 2,779.60 | [-5,729.26, 11,288.45] | 0.547726 | Yes |
+| Model | ES Level | Mean ES | ES Calibration Moment Mean | Pivotal 95% CI | Equal-tailed p | Zero in CI |
+|---|---:|---:|---:|---|---:|:---:|
+| HS | 95% | 51,708.33 | -10,699.12 | [-14,759.24, -7,018.41] | 0.0009995 | No |
+| EWMA | 95% | 36,109.73 | 2,629.41 | [-2,879.01, 6,942.79] | 0.304914 | Yes |
+| PCA_MC | 95% | 44,975.66 | -3,645.62 | [-7,703.36, -415.10] | 0.020949 | No |
+| HS | 99% | 78,239.76 | -11,273.62 | [-18,374.10, -6,428.83] | 0.0009995 | No |
+| EWMA | 99% | 46,685.99 | 15,941.76 | [-738.47, 29,510.29] | 0.0586224 | Yes |
+| PCA_MC | 99% | 58,157.06 | 2,781.40 | [-6,965.46, 10,324.80] | 0.508363 | Yes |
 
-At 95%, the intervals for HS and PCA_MC lie below zero. At 99%, the HS interval lies below zero and the EWMA interval lies above zero. These departures provide evidence of a nonzero mean under the bootstrap assumptions. Conclusions apply to this swap and sample period. Sparse 99% VaR exceptions limit inference, and the exploratory ES diagnostic is sensitive to block length and time-series dependence.
+For EWMA at 99%, zero lies in the pivotal interval [-738.47, 29,510.29] (p = 0.0586224). The symmetric interval [1,193.23, 30,690.29] excludes zero (absolute-tail p = 0.035982). This is the only group whose 5% decision differs between the two methods.
+The evidence applies to this swap and sample period. Sparse 99% VaR exceptions limit inference,
+and the exploratory, unconditional ES diagnostic is sensitive to interval construction,
+block length, and time-series dependence.
 
 ## Research Outputs
 
@@ -66,4 +69,6 @@ At 95%, the intervals for HS and PCA_MC lie below zero. At 99%, the HS interval 
 - **Faye Sun** ([@fayeyeye](https://github.com/fayeyeye)) implemented the initial VaR and ES backtesting and model comparison in [PR #4](https://github.com/rOOOOOnn/IRS/pull/4).
 - **Ron** developed the data, curve construction, and IRS pricing workflows and finalized the Backtesting integration.
 
-For reproduction, see [environment setup](docs/environment_setup.md). The backtest can be reproduced from the checked-in inputs with `uv run python scripts/run_backtesting.py`.
+For reproduction, see [environment setup](docs/environment_setup.md).
+`uv run python scripts/run_curve_pricing_pipeline.py` runs data preparation, curve construction and IRS
+pricing. Run risk forecasts separately with `uv run python scripts/run_risk_models.py`. The backtest can be reproduced from the checked-in inputs with `uv run python scripts/run_backtesting.py`.

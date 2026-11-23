@@ -160,22 +160,15 @@ def main():
         results["p_CC"].map(decision)
     )
 
-    def es_decision(row):
-
-        if pd.isna(row["ES_Moment_CI_Lower"]):
-            return "UNAVAILABLE"
-
-        if (
-            row["ES_Moment_CI_Lower"] > 0
-            or row["ES_Moment_CI_Upper"] < 0
-        ):
-            return "ZERO_OUTSIDE_CI"
-
-        return "ZERO_IN_CI"
-
-    results["ES_Diagnostic_Decision_5pct"] = (
-        results.apply(es_decision, axis=1)
+    available = results["ES_Bootstrap_p"].notna()
+    excludes_zero = (
+        results["ES_Moment_CI_Lower"].gt(0) | results["ES_Moment_CI_Upper"].lt(0)
     )
+    if not excludes_zero[available].eq(results.loc[available, "ES_Bootstrap_p"].lt(0.05)).all():
+        raise ValueError("Pivotal interval and equal-tailed ES p-value decisions disagree")
+    results["ES_Diagnostic_Decision_5pct"] = "UNAVAILABLE"
+    results.loc[available & excludes_zero, "ES_Diagnostic_Decision_5pct"] = "ZERO_OUTSIDE_CI"
+    results.loc[available & ~excludes_zero, "ES_Diagnostic_Decision_5pct"] = "ZERO_IN_CI"
 
     # ---------------------------------------
     # 7. Save outputs
@@ -225,6 +218,10 @@ def main():
         "ES_Moment_Mean",
         "ES_Moment_CI_Lower",
         "ES_Moment_CI_Upper",
+        "ES_Bootstrap_p",
+        "ES_Moment_Symmetric_CI_Lower",
+        "ES_Moment_Symmetric_CI_Upper",
+        "ES_Bootstrap_Symmetric_p",
         "VaR_Pinball_Score",
     ]
 
