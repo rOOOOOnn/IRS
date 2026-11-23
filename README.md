@@ -1,160 +1,69 @@
-# RMSC5003 Interest Rate Swap Pricing and Risk Modelling
+# USD SOFR Swap Pricing and Risk Backtesting
 
-This repository supports the CUHK RMSC5003 group project on USD SOFR interest rate swaps. Phase 1 establishes a reproducible project structure, inspects and standardizes exported market data, defines chronological research periods, and documents the interfaces between the three team members.
+CUHK RMSC5003 group research on a USD 10 million pay-fixed, receive-compounded-SOFR interest rate swap held by the John Hancock Financial Opportunities Fund. Using historical Bloomberg market data, we built daily SOFR curves, valued the swap, and compared three one-day risk forecasts against cashflow-adjusted mark-to-market losses.
 
-> **Implemented scope:** the repository now includes SOFR OIS bootstrapping, four interpolation frameworks, LOTO validation, daily curve databases, compounded-SOFR IRS pricing, cashflow-adjusted P&L, and scenario repricing. Rolling HS, EWMA and PCA Monte Carlo forecasts now share this engine; the decision-tree ensemble and backtesting remain separate modules.
+## Main Findings
 
-## Case Study
+- **Curve selection.** Monotone-convex forward interpolation had the lowest leave-one-tenor-out RMSE in both training and validation. The selected method was fixed before the out-of-sample comparison.
+- **95% VaR.** EWMA came closest to the 5% target exception rate. Its conditional coverage test did not reject at the 5% significance level. Historical Simulation and PCA Monte Carlo produced fewer exceptions than expected, consistent with conservative VaR forecasts in this sample, and both were rejected.
+- **99% VaR.** The conditional coverage test did not reject any of the three models. With only 5 to 12 exceptions per model, the sample offers limited power to distinguish their coverage.
+- **Expected Shortfall.** The bootstrap interval for the mean ES calibration moment contains zero for EWMA at 95% and PCA Monte Carlo at 99%. The diagnostic measures unconditional calibration and depends on both VaR and ES.
 
-The project studies a USD interest rate swap held by the John Hancock Financial Opportunities Fund.
+## Study Design and Sample
 
-### Verified facts from the supplied case material
+Historical Simulation (HS), Exponentially Weighted Moving Average (EWMA), and PCA Monte Carlo (PCA_MC) use the same contract, pricing engine, and P&L definition. The out-of-sample evaluation runs from **2023-05-31 to 2026-10-29**. All models and confidence levels use the same **830 valid dates** out of 877 candidates. The common-sample screen excludes 47 dates and 282 forecast rows.
 
-- Notional: USD 10,000,000
-- Fixed rate: 3.356%
-- Position: pay fixed / receive floating
-- Floating reference: compounded SOFR
-- Currency: USD
+| Failure Category | Dates | Forecast Rows |
+|---|---:|---:|
+| Non-business forecast or cutoff date | 30 | 180 |
+| Realized P&L interval mismatch | 16 | 96 |
+| Missing exact cutoff SOFR Index | 1 | 6 |
+| Other | 0 | 0 |
+| **Total** | 47 | 282 |
 
-### Research assumptions requiring confirmation
+## Value at Risk Results
 
-- Assumed start date: 2023-05-01
-- Assumed maturity: May 2028
-- The SEC filing specifies semiannual fixed payments and quarterly floating payments. Exact payment dates, day counts, calendar adjustments and reset rules remain research assumptions.
+The expected exception rates are 5% at 95% VaR and 1% at 99% VaR. An exception occurs when realized loss exceeds predicted VaR.
 
-See [assumptions and issues](docs/assumptions_and_issues.md) before using the case terms in a model.
+| Model | VaR Level | Exceptions | Exception Rate | Kupiec p | Christoffersen Independence p | Conditional Coverage p |
+|---|---:|---:|---:|---:|---:|---:|
+| HS | 95% | 22 | 2.65% | 0.000676155 | 0.289363 | 0.00176761 |
+| EWMA | 95% | 36 | 4.34% | 0.370582 | 0.697049 | 0.620869 |
+| PCA_MC | 95% | 17 | 2.05% | 1.05499e-05 | 0.421391 | 4.41552e-05 |
+| HS | 99% | 5 | 0.60% | 0.213866 | 0.823117 | 0.450447 |
+| EWMA | 99% | 12 | 1.45% | 0.226245 | 0.564065 | 0.407174 |
+| PCA_MC | 99% | 6 | 0.72% | 0.398622 | 0.764033 | 0.669452 |
 
-## Research Flow
+![Realized loss and EWMA 95% VaR on the common test sample](outputs/backtesting/figures/EWMA_95_var.png)
 
-```text
-Bloomberg exports
-  -> standardized market data
-  -> daily zero curves (Phase 2)
-  -> IRS daily MTM and P&L (Phase 2)
-  -> HS / EWMA / PCA-MC risk forecasts
-  -> dynamic ensemble forecasts
-  -> VaR and ES backtesting
-```
+## Expected Shortfall Results
 
-OIS par swap rates are inputs to the shared curve engine. They are not zero rates and must not be passed to the final risk model as if they were zero rates.
+Mean ES is the average forecasted tail loss in USD. The ES calibration moment has a theoretical mean of zero under correct joint VaR and ES calibration. The 95% block-bootstrap confidence interval estimates the mean of this moment.
 
-## Team Responsibilities
+| Model | ES Level | Mean ES | ES Calibration Moment Mean | ES Calibration Moment 95% CI | Bootstrap p | Zero in CI |
+|---|---:|---:|---:|---:|---:|:---:|
+| HS | 95% | 51,707.35 | -10,697.52 | [-14,505.86, -6,889.17] | 0.00049975 | No |
+| EWMA | 95% | 36,111.09 | 2,627.97 | [-2,271.76, 7,527.71] | 0.296852 | Yes |
+| PCA_MC | 95% | 44,975.90 | -3,645.73 | [-7,181.74, -109.72] | 0.043978 | No |
+| HS | 99% | 78,230.25 | -11,266.10 | [-16,918.14, -5,614.07] | 0.003998 | No |
+| EWMA | 99% | 46,687.74 | 15,938.52 | [1,191.31, 30,685.73] | 0.035982 | No |
+| PCA_MC | 99% | 58,157.38 | 2,779.60 | [-5,729.26, 11,288.45] | 0.547726 | Yes |
 
-| Member | Primary responsibility | Main future outputs | Working area |
-|---|---|---|---|
-| 陈美婷 | Historical Simulation, EWMA, PCA-based Monte Carlo, VaR and ES | `risk_model_outputs.csv` | `src/irs_project/risk/` |
-| Faye | VaR/ES backtesting, Kupiec and Christoffersen tests, model comparison | `backtest_results.csv` | `src/irs_project/backtesting/` |
-| Ron | Data, curve construction, IRS pricing, MTM/P&L, ensemble | `zero_curve_panel.csv`, `discount_factor_panel.csv`, `irs_mtm_pnl.csv`, `ensemble_outputs.csv` | `src/irs_project/data/`, `curves/`, `pricing/`, `ensemble/` |
+At 95%, the intervals for HS and PCA_MC lie below zero. At 99%, the HS interval lies below zero and the EWMA interval lies above zero. These departures provide evidence of a nonzero mean under the bootstrap assumptions. Conclusions apply to this swap and sample period. Sparse 99% VaR exceptions limit inference, and the exploratory ES diagnostic is sensitive to block length and time-series dependence.
 
-Full ownership and handoff rules are in [team responsibilities](docs/team_responsibilities.md) and [data interfaces](docs/data_interfaces.md).
+## Research Outputs
 
-## Repository Structure
+| Area | Results |
+|---|---|
+| SOFR curve construction | [Method selection and validation](outputs/curve_validation/final_method_recommendation.md) · [Daily zero curves](outputs/curves/zero_curve_panel.csv) |
+| IRS valuation | [Daily mark-to-market and P&L](outputs/pricing/irs_mtm_pnl.csv) · [Contract and pricing methodology](docs/irs_pricing_methodology.md) |
+| Risk forecasting | [Rolling VaR and ES forecasts](outputs/risk/risk_model_outputs.csv) · [Risk integration validation](outputs/risk/risk_validation_report.md) |
+| Backtesting | [Research summary](src/irs_project/backtesting/README.md) · [Full statistics](outputs/backtesting/backtest_results.csv) · [Exclusion audit](outputs/backtesting/excluded_date_summary.csv) |
 
-```text
-config/                    Shared dates and project assumptions
-data/raw/                  Shared source exports and their archive
-data/interim/              Shared intermediate data when created
-data/processed/            Reproducible standardized market data
-data/sample/               Small synthetic test data safe for Git
-docs/                      Scope, interfaces, definitions, setup, and workflow
-outputs/                   Local figures, tables, and reports
-src/irs_project/data/      Phase 1 inspection and preprocessing pipeline
-src/irs_project/*/         Data, curve, pricing, risk, ensemble, and backtesting modules
-tests/                     Unit tests using synthetic data
-```
+## Contributions
 
-## Research Periods
+- **陈美婷** developed the HS, EWMA, and PCA Monte Carlo risk forecasts.
+- **Faye Sun** ([@fayeyeye](https://github.com/fayeyeye)) implemented the initial VaR and ES backtesting and model comparison in [PR #4](https://github.com/rOOOOOnn/IRS/pull/4).
+- **Ron** developed the data, curve construction, and IRS pricing workflows and finalized the Backtesting integration.
 
-| Dataset | Preset period | Purpose |
-|---|---|---|
-| Training | 2018-04-02 to 2021-12-31 | Estimation and parameter fitting |
-| Validation | 2022-01-03 to 2023-04-28 | Model and hyperparameter selection |
-| Inception / transition | 2023-05-01 to 2023-05-30 | Initial valuation and transition analysis |
-| Test / backtesting | 2023-05-31 to latest valid date | Final out-of-sample evaluation |
-
-The pipeline reports actual observations within these preset boundaries and never silently changes them. Curve construction and pricing will eventually run across the entire valid interval, including test dates. See [data split](docs/data_split.md).
-
-## First-Time Setup
-
-Install [uv](https://docs.astral.sh/uv/), then run:
-
-```bash
-uv python install 3.11
-uv sync --locked
-uv run python --version
-uv run pytest
-```
-
-The production workflow uses ordinary Python modules and command-line entry points. JupyterLab remains an optional environment tool for one-off exploration or presentation work; no project pipeline depends on a notebook. Detailed Windows and macOS instructions are in [environment setup](docs/environment_setup.md).
-
-## Data Preprocessing
-
-Source Excel exports are organized under `data/raw/bloomberg/` and are shared in this repository so every group member can reproduce the same pipeline.
-
-```bash
-uv run python -m irs_project.data.inspect
-uv run python -m irs_project.data.preprocess
-uv run python -m irs_project.data.validate
-```
-
-The pipeline creates shared outputs including `ois_quotes_long.csv`, the full `ois_par_rates_wide.csv`, the curve-ready `ois_curve_inputs_5y.csv`, `incomplete_curve_dates.csv`, `sofr_fixings.csv`, `sofr_index.csv`, coverage and missingness files, and `outputs/reports/data_quality_report.md`.
-
-It preserves raw values, keeps SOFR Index separate from rates, and flags USOSFR observations before 2018-04-02 as `PRE_SOFR_UNVERIFIED`. The five-year curve input keeps dates when only 7Y or 10Y is missing, but excludes dates missing any required 1M-5Y node. No interpolation is used, and the full panel plus exclusion report preserve traceability.
-
-## Curve Construction and IRS Pricing
-
-Run the workflows in order:
-
-```bash
-uv run python scripts/run_curve_validation.py
-uv run python scripts/build_daily_curves.py
-uv run python scripts/run_irs_pricing.py
-```
-
-Or run the complete reproducible pipeline:
-
-```bash
-uv run python scripts/run_full_pipeline.py
-```
-
-The four independently bootstrapped methods are linear zero, log-linear discount, natural cubic
-zero, and Hagan-West convex-monotone forward interpolation. Method selection uses Training and
-Validation LOTO only; Test results never select or tune the method. See
-[curve methodology](docs/curve_methodology.md), [curve validation](docs/curve_validation.md), and
-[IRS pricing methodology](docs/irs_pricing_methodology.md).
-
-## GitHub for Beginners
-
-New GitHub users should follow [GitHub workflow for group members](docs/github_workflow.md). It explains cloning, creating a personal branch, committing, pushing, and opening a pull request on both Windows and macOS.
-
-During Phase 1, the project setup is committed to `main`. Once parallel development starts, each member must work on a separate feature branch and merge through a pull request.
-
-## Data and Credential Policy
-
-The project owner has chosen to share the source exports and reproducible processed data in this repository so all group members have the same inputs. Each team member must still follow the university's and data provider's applicable terms. Passwords, API keys, tokens, private keys, `.env` files, and local virtual environments must never be committed.
-
-## Rolling Risk Forecasts
-
-After generating the curve and pricing databases, run:
-
-```bash
-uv run python -m scripts.run_risk_models
-uv run python -m scripts.plot_risk_forecasts
-```
-
-The production handoff is `outputs/risk/risk_model_outputs.csv`, with the agreed seven fields.
-All three models use the same eight zero-rate risk factors, contract configuration, pricing
-engine and cashflow-adjusted holding-period loss. Defaults are 500 valid historical changes,
-50,000 Monte Carlo scenarios, EWMA decay 0.94 and three PCA factors.
-
-`Date` is the target realization date; `Forecast_As_Of` is the prior observed-market EOD cutoff.
-Missing forecasts remain empty and are explained in diagnostics; never replace them with zero.
-See [risk methodology](docs/risk_methodology.md) for projected future SOFR, date semantics,
-known limitations and consumer examples. Figures are in `outputs/risk/figures/`.
-
-## Next Phase
-
-Backtesting and ensemble modules can consume the standardized rolling forecasts and the aligned
-cashflow-adjusted IRS P&L. Report incomplete coverage explicitly and do not tune model or ensemble
-parameters on final Test results. Historical standalone demonstration scripts and their single-date
-CSV outputs are not production inputs.
+For reproduction, see [environment setup](docs/environment_setup.md). The backtest can be reproduced from the checked-in inputs with `uv run python scripts/run_backtesting.py`.
